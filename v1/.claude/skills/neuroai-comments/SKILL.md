@@ -1,5 +1,6 @@
 ---
 name: neuroai-comments
+model: sonnet
 description: "NeuroAI: Monitor and answer @NeuroAI comments on Notion paper pages. Trigger on schedule or when user says 'neuroai comments', 'check comments', or 'answer comments'."
 ---
 

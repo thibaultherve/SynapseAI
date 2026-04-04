@@ -1,5 +1,6 @@
 ---
 name: neuroai-crossref
+model: opus
 description: "NeuroAI: Cross-reference papers, update literature synthesis, gap analysis, and concordance tracking. Trigger on schedule or when user says 'neuroai crossref', 'cross-reference papers', or 'analyze connections'."
 ---
 

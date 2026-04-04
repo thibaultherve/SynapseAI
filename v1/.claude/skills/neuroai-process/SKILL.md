@@ -1,5 +1,6 @@
 ---
 name: neuroai-process
+model: opus
 description: "NeuroAI: Process a single new scientific paper — read content, generate summaries, key findings, and update Notion. Trigger on schedule or when user says 'neuroai process', 'process paper', or 'summarize paper'."
 ---
 

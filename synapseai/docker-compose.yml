@@ -1,0 +1,43 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_DB: synapseai
+      POSTGRES_USER: synapseai
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-synapseai_dev}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapseai"]
+      interval: 5s
+      retries: 5
+
+  db-test:
+    image: pgvector/pgvector:pg16
+    ports: ["5434:5432"]
+    environment:
+      POSTGRES_DB: synapseai_test
+      POSTGRES_USER: synapseai
+      POSTGRES_PASSWORD: synapseai_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapseai"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://synapseai:${DB_PASSWORD:-synapseai_dev}@db:5432/synapseai
+      UPLOAD_DIR: /data/uploads
+      ENV: development
+    volumes:
+      - ./api:/app
+      - uploads:/data/uploads
+    depends_on:
+      db: { condition: service_healthy }
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
+  uploads:

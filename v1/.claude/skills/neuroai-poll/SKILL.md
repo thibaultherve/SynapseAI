@@ -1,5 +1,6 @@
 ---
 name: neuroai-poll
+model: haiku
 description: "NeuroAI: Poll Notion for new scientific papers, download content, and queue for processing. Trigger on schedule or when user says 'neuroai poll', 'check new papers', or 'poll papers'."
 ---
 
