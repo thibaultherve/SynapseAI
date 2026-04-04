@@ -1,0 +1,8 @@
+__pycache__/
+.env
+data/papers/*
+data/synthesis/**/*.md
+data/**/*.json
+
+!data/papers/.gitkeep
+!data/synthesis/.gitkeep
