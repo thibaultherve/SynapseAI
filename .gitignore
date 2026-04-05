@@ -1,1 +1,13 @@
-.claude/*
+**/.claude/
+!v1/.claude/
+
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+.venv/
+venv/
+.env
+uploads/
