@@ -1,8 +1,13 @@
-__pycache__/
-.env
-data/papers/*
-data/synthesis/**/*.md
-data/**/*.json
+**/.claude/
+!v1/.claude/
 
-!data/papers/.gitkeep
-!data/synthesis/.gitkeep
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+.venv/
+venv/
+.env
+uploads/
