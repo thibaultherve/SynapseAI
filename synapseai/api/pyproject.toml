@@ -18,6 +18,11 @@ select = [
     "SIM",  # flake8-simplify
     "ASYNC",# flake8-async
 ]
+ignore = [
+    "B008",    # Depends() in defaults is the standard FastAPI pattern
+    "ASYNC109",# timeout params in async functions are fine (asyncio.wait_for)
+    "ASYNC240",# pathlib in async routes is acceptable for fast metadata ops
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

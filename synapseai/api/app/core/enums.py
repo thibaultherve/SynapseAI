@@ -5,6 +5,7 @@ class PaperStatus(StrEnum):
     UPLOADING = "uploading"
     EXTRACTING = "extracting"
     SUMMARIZING = "summarizing"
+    SUMMARIZED = "summarized"
     TAGGING = "tagging"
     EMBEDDING = "embedding"
     CROSSREFING = "crossrefing"

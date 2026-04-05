@@ -20,7 +20,7 @@ services:
       POSTGRES_USER: synapseai
       POSTGRES_PASSWORD: synapseai_test
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U synapseai"]
+      test: ["CMD-SHELL", "pg_isready -U synapseai -d synapseai_test"]
       interval: 5s
       retries: 5
 
@@ -34,6 +34,7 @@ services:
     volumes:
       - ./api:/app
       - uploads:/data/uploads
+      - ~/.claude:/root/.claude
     depends_on:
       db: { condition: service_healthy }
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

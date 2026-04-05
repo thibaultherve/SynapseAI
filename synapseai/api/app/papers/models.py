@@ -28,8 +28,8 @@ class Paper(Base):
             name="valid_source_type",
         ),
         CheckConstraint(
-            "status IN ('uploading', 'extracting', 'summarizing', 'tagging', "
-            "'embedding', 'crossrefing', 'done', 'error', 'deleted')",
+            "status IN ('uploading', 'extracting', 'summarizing', 'summarized', "
+            "'tagging', 'embedding', 'crossrefing', 'done', 'error', 'deleted')",
             name="valid_status",
         ),
     )

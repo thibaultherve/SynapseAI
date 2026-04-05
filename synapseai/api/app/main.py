@@ -4,13 +4,18 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.database import engine, get_db
 from app.core.exceptions import AppError
+from app.papers.router import router as papers_router
+from app.processing.router import router as processing_router
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +25,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
     yield
+    from app.processing.task_registry import drain_tasks
+
+    await drain_tasks()
 
 
 app = FastAPI(
@@ -28,13 +36,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# Rate limiting
+from app.ratelimit import limiter  # noqa: E402
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.exception_handler(AppError)
@@ -46,10 +61,17 @@ async def app_error_handler(request: Request, exc: AppError):
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError):
+async def validation_error_handler(
+    request: Request, exc: RequestValidationError
+):
     return JSONResponse(
         status_code=422,
-        content={"error": {"code": "VALIDATION_ERROR", "message": str(exc.errors())}},
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": str(exc.errors()),
+            }
+        },
     )
 
 
@@ -58,8 +80,17 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception")
     return JSONResponse(
         status_code=500,
-        content={"error": {"code": "INTERNAL_ERROR", "message": "Internal server error"}},
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error",
+            }
+        },
     )
+
+
+app.include_router(papers_router)
+app.include_router(processing_router)
 
 
 @app.get("/api/health")
