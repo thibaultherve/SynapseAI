@@ -12,9 +12,35 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base
+
+
+class PaperStep(Base):
+    __tablename__ = "paper_step"
+    __table_args__ = (
+        CheckConstraint(
+            "step IN ('uploading', 'extracting', 'summarizing', "
+            "'tagging', 'embedding', 'crossrefing')",
+            name="valid_step_name",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'done', 'error', 'skipped')",
+            name="valid_step_status",
+        ),
+    )
+
+    paper_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("paper.id", ondelete="CASCADE"), primary_key=True
+    )
+    step: Mapped[str] = mapped_column(String(20), primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), server_default="pending")
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column()
+    completed_at: Mapped[datetime | None] = mapped_column()
+
+    paper: Mapped["Paper"] = relationship(back_populates="steps")
 
 
 class PaperEmbedding(Base):

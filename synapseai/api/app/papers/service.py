@@ -6,13 +6,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import upload_settings
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import SourceType, StepName
 from app.core.exceptions import ConflictError
 from app.papers.constants import ErrorCode
 from app.papers.models import Paper
 from app.papers.schemas import PaperUpdate
+from app.processing.models import PaperStep
 from app.utils.doi_resolver import resolve_doi
 from app.utils.url_validator import validate_url
+
+
+async def _create_initial_steps(db: AsyncSession, paper_id: uuid.UUID):
+    """Create 6 paper_step rows (all pending) for a new paper."""
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
 
 
 async def create_paper_from_pdf(
@@ -27,11 +34,14 @@ async def create_paper_from_pdf(
     paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF.value,
-        status=PaperStatus.UPLOADING.value,
         file_path=str(file_path),
     )
     db.add(paper)
     await db.flush()
+
+    await _create_initial_steps(db, paper_id)
+    await db.flush()
+    await db.refresh(paper, ["steps"])
 
     # Import here to avoid circular imports
     from app.processing.service import process_paper
@@ -48,11 +58,14 @@ async def create_paper_from_url(url: str, db: AsyncSession) -> Paper:
     paper = Paper(
         id=paper_id,
         source_type=SourceType.WEB.value,
-        status=PaperStatus.UPLOADING.value,
         url=url,
     )
     db.add(paper)
     await db.flush()
+
+    await _create_initial_steps(db, paper_id)
+    await db.flush()
+    await db.refresh(paper, ["steps"])
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing
@@ -73,12 +86,15 @@ async def create_paper_from_doi(doi: str, db: AsyncSession) -> Paper:
     paper = Paper(
         id=paper_id,
         source_type=SourceType.WEB.value,
-        status=PaperStatus.UPLOADING.value,
         doi=doi,
         url=resolved_url,
     )
     db.add(paper)
     await db.flush()
+
+    await _create_initial_steps(db, paper_id)
+    await db.flush()
+    await db.refresh(paper, ["steps"])
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing

@@ -2,10 +2,11 @@ import re
 import uuid
 from datetime import date, datetime
 
-from pydantic import Field, HttpUrl, field_validator, model_validator
+from pydantic import Field, HttpUrl, computed_field, field_validator, model_validator
 
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import DerivedPaperStatus, SourceType, StepName, StepStatus
 from app.core.schemas import AppBaseModel
+from app.papers.utils import compute_paper_status
 
 DOI_PATTERN = r"^10\.\d{4,}/\S+$"
 
@@ -49,6 +50,14 @@ class PaperUpdate(AppBaseModel):
         return _validate_doi(v)
 
 
+class PaperStepResponse(AppBaseModel):
+    step: StepName
+    status: StepStatus
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
 class PaperResponse(AppBaseModel):
     id: uuid.UUID
     title: str | None = None
@@ -59,8 +68,7 @@ class PaperResponse(AppBaseModel):
     doi: str | None = None
     url: str | None = None
     source_type: SourceType | None = None
-    status: PaperStatus
-    error_message: str | None = None
+    steps: list[PaperStepResponse] = []
     extracted_text: str | None = None
     short_summary: str | None = None
     detailed_summary: str | None = None
@@ -71,6 +79,11 @@ class PaperResponse(AppBaseModel):
     updated_at: datetime
     processed_at: datetime | None = None
 
+    @computed_field
+    @property
+    def status(self) -> DerivedPaperStatus:
+        return compute_paper_status(self.steps)
+
 
 class PaperSummaryResponse(AppBaseModel):
     id: uuid.UUID
@@ -79,9 +92,14 @@ class PaperSummaryResponse(AppBaseModel):
     journal: str | None = None
     doi: str | None = None
     source_type: SourceType | None = None
-    status: PaperStatus
+    steps: list[PaperStepResponse] = []
     short_summary: str | None = None
     keywords: list[str] | None = None
     word_count: int | None = None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def status(self) -> DerivedPaperStatus:
+        return compute_paper_status(self.steps)

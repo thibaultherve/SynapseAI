@@ -2,10 +2,12 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 
 from app.core.database import async_session
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import SourceType
 from app.papers.models import Paper
+from app.processing.models import PaperStep
 
 
 @pytest.mark.asyncio
@@ -21,14 +23,13 @@ async def test_process_paper_not_found(db):
 
 @pytest.mark.asyncio
 async def test_process_paper_no_text_extracted(db, tmp_upload_dir, mock_claude):
-    """process_paper when extraction yields no text -> paper goes to error state."""
+    """process_paper when extraction yields no text -> extracting step goes to error."""
     from app.processing.service import process_paper
 
     paper_id = uuid.uuid4()
     paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF.value,
-        status=PaperStatus.UPLOADING.value,
         file_path="nonexistent.pdf",
     )
     db.add(paper)
@@ -42,9 +43,12 @@ async def test_process_paper_no_text_extracted(db, tmp_upload_dir, mock_claude):
         await process_paper(paper_id)
 
     async with async_session() as verify_db:
-        result = await verify_db.get(Paper, paper_id)
-        assert result.status == PaperStatus.ERROR.value
-        assert "No text content" in result.error_message
+        steps = (await verify_db.execute(
+            select(PaperStep).where(PaperStep.paper_id == paper_id)
+        )).scalars().all()
+        step_map = {s.step: s for s in steps}
+        assert step_map["extracting"].status == "error"
+        assert "No text content" in step_map["extracting"].error_message
 
 
 @pytest.mark.asyncio
@@ -56,7 +60,6 @@ async def test_process_paper_web_pipeline(db, mock_claude):
     paper = Paper(
         id=paper_id,
         source_type=SourceType.WEB.value,
-        status=PaperStatus.UPLOADING.value,
         url="https://example.com/paper",
     )
     db.add(paper)
@@ -78,22 +81,28 @@ async def test_process_paper_web_pipeline(db, mock_claude):
 
     async with async_session() as verify_db:
         result = await verify_db.get(Paper, paper_id)
-        assert result.status == PaperStatus.SUMMARIZED.value
         assert result.extracted_text == "Extracted web text from the research paper."
         assert result.short_summary is not None
         assert result.processed_at is not None
 
+        steps = (await verify_db.execute(
+            select(PaperStep).where(PaperStep.paper_id == paper_id)
+        )).scalars().all()
+        step_map = {s.step: s.status for s in steps}
+        assert step_map["uploading"] == "done"
+        assert step_map["extracting"] == "done"
+        assert step_map["summarizing"] == "done"
+
 
 @pytest.mark.asyncio
 async def test_process_paper_extraction_error_sets_error_state(db, tmp_upload_dir):
-    """process_paper when extraction raises -> paper goes to error state with message."""
+    """process_paper when extraction raises -> extracting step error with message."""
     from app.processing.service import process_paper
 
     paper_id = uuid.uuid4()
     paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF.value,
-        status=PaperStatus.UPLOADING.value,
         file_path="some.pdf",
     )
     db.add(paper)
@@ -107,6 +116,12 @@ async def test_process_paper_extraction_error_sets_error_state(db, tmp_upload_di
         await process_paper(paper_id)
 
     async with async_session() as verify_db:
-        result = await verify_db.get(Paper, paper_id)
-        assert result.status == PaperStatus.ERROR.value
-        assert "PDF corrupted" in result.error_message
+        steps = (await verify_db.execute(
+            select(PaperStep).where(PaperStep.paper_id == paper_id)
+        )).scalars().all()
+        step_map = {s.step: s for s in steps}
+        # Uploading should be done (PDF file already uploaded)
+        assert step_map["uploading"].status == "done"
+        # Extracting should be in error
+        assert step_map["extracting"].status == "error"
+        assert "PDF corrupted" in step_map["extracting"].error_message

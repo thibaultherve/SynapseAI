@@ -18,9 +18,10 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 )
 
 from app.core.database import get_db  # noqa: E402
-from app.core.enums import PaperStatus, SourceType  # noqa: E402
+from app.core.enums import SourceType, StepName  # noqa: E402
 from app.main import app  # noqa: E402
 from app.papers.models import Paper  # noqa: E402
+from app.processing.models import PaperStep  # noqa: E402
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -37,7 +38,8 @@ async def _clean_tables():
         await conn.execute(
             sa_text(
                 "TRUNCATE paper, tag, paper_tag, paper_embedding, cross_reference, "
-                "insight, insight_paper, chat_session, chat_message, processing_event "
+                "insight, insight_paper, chat_session, chat_message, processing_event, "
+                "paper_step "
                 "CASCADE"
             )
         )
@@ -72,21 +74,37 @@ async def db():
 
 @pytest.fixture
 async def paper_factory(db):
-    """Factory fixture to create test papers in the DB."""
+    """Factory fixture to create test papers with steps in the DB.
+
+    Args:
+        source_type: PDF or WEB
+        steps: Optional dict mapping step name -> status string.
+               Missing steps default to "pending".
+        **kwargs: Extra Paper field overrides.
+    """
 
     async def _create(
         source_type: str = SourceType.PDF,
-        status: str = PaperStatus.UPLOADING,
+        steps: dict[str, str] | None = None,
         **kwargs,
     ) -> Paper:
         paper = Paper(
             id=uuid.uuid4(),
             source_type=source_type,
-            status=status,
             **kwargs,
         )
         db.add(paper)
         await db.flush()
+
+        step_statuses = steps or {}
+        for step_name in StepName:
+            db.add(PaperStep(
+                paper_id=paper.id,
+                step=step_name.value,
+                status=step_statuses.get(step_name.value, "pending"),
+            ))
+        await db.commit()
+
         return paper
 
     return _create

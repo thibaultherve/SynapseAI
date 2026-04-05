@@ -14,7 +14,7 @@ from app.core.base import Base
 # Import all models so Alembic detects them
 from app.papers.models import Paper, PaperTag  # noqa: F401
 from app.tags.models import Tag  # noqa: F401
-from app.processing.models import CrossReference, PaperEmbedding, ProcessingEvent  # noqa: F401
+from app.processing.models import CrossReference, PaperEmbedding, PaperStep, ProcessingEvent  # noqa: F401
 from app.insights.models import Insight, InsightPaper  # noqa: F401
 from app.chat.models import ChatMessage, ChatSession  # noqa: F401
 

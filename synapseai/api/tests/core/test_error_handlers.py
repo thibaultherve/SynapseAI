@@ -5,9 +5,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.database import get_db
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import SourceType, StepName
 from app.main import app
 from app.papers.models import Paper
+from app.processing.models import PaperStep
 
 from tests.conftest import override_get_db
 
@@ -16,11 +17,11 @@ from tests.conftest import override_get_db
 async def test_unhandled_exception_returns_500(db):
     """When an unhandled exception occurs in a route -> 500 INTERNAL_ERROR."""
     paper_id = uuid.uuid4()
-    db.add(Paper(
-        id=paper_id,
-        source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
-    ))
+    paper = Paper(id=paper_id, source_type=SourceType.PDF)
+    db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
     app.dependency_overrides[get_db] = override_get_db

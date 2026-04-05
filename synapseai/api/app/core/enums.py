@@ -1,17 +1,31 @@
 from enum import StrEnum
 
 
-class PaperStatus(StrEnum):
+class StepName(StrEnum):
     UPLOADING = "uploading"
     EXTRACTING = "extracting"
     SUMMARIZING = "summarizing"
-    SUMMARIZED = "summarized"
     TAGGING = "tagging"
     EMBEDDING = "embedding"
     CROSSREFING = "crossrefing"
+
+
+class StepStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
     DONE = "done"
     ERROR = "error"
-    DELETED = "deleted"
+    SKIPPED = "skipped"
+
+
+class DerivedPaperStatus(StrEnum):
+    """Computed paper status derived from step statuses."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    READABLE = "readable"
+    ENRICHED = "enriched"
+    ERROR = "error"
 
 
 class SourceType(StrEnum):

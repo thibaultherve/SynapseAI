@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import SourceType
 
 # --- Upload PDF ---
 
 
 @pytest.mark.asyncio
 async def test_upload_pdf_valid(client, tmp_upload_dir):
-    """Upload a valid PDF -> 201, paper created."""
+    """Upload a valid PDF -> 201, paper created with steps."""
     pdf_content = b"%PDF-1.4 fake pdf content for testing"
 
     with patch("app.processing.task_registry.launch_processing"):
@@ -24,8 +24,9 @@ async def test_upload_pdf_valid(client, tmp_upload_dir):
     assert response.status_code == 201
     data = response.json()
     assert data["source_type"] == "pdf"
-    assert data["status"] == "uploading"
+    assert data["status"] == "pending"
     assert data["id"] is not None
+    assert len(data["steps"]) == 6
 
 
 @pytest.mark.asyncio
@@ -105,16 +106,21 @@ async def test_create_paper_doi_valid(client):
 @pytest.mark.asyncio
 async def test_create_paper_doi_duplicate(client, db):
     """POST /api/papers with duplicate DOI -> 409."""
+    from app.core.enums import StepName
     from app.papers.models import Paper
+    from app.processing.models import PaperStep
 
+    paper_id = uuid.uuid4()
     paper = Paper(
-        id=uuid.uuid4(),
+        id=paper_id,
         source_type=SourceType.WEB,
-        status=PaperStatus.UPLOADING,
         doi="10.1038/s41586-024-99999",
         url="https://example.com",
     )
     db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
     with patch(
@@ -143,17 +149,12 @@ async def test_create_paper_no_url_no_doi(client):
 
 
 @pytest.mark.asyncio
-async def test_list_papers(client, db):
+async def test_list_papers(client, paper_factory):
     """GET /api/papers -> list of papers."""
-    from app.papers.models import Paper
-
     for _i in range(3):
-        db.add(Paper(
-            id=uuid.uuid4(),
-            source_type=SourceType.PDF,
-            status=PaperStatus.UPLOADING,
-        ))
-    await db.commit()
+        await paper_factory()
+    # paper_factory uses its own db session; commit to make visible to client
+    # (paper_factory already flushes, but client uses a different session)
 
     response = await client.get("/api/papers")
 
@@ -163,23 +164,17 @@ async def test_list_papers(client, db):
 
 
 @pytest.mark.asyncio
-async def test_get_paper_detail(client, db):
-    """GET /api/papers/:id -> paper detail."""
-    from app.papers.models import Paper
+async def test_get_paper_detail(client, paper_factory):
+    """GET /api/papers/:id -> paper detail with steps."""
+    paper = await paper_factory(title="Test Paper")
 
-    paper_id = uuid.uuid4()
-    db.add(Paper(
-        id=paper_id,
-        source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
-        title="Test Paper",
-    ))
-    await db.commit()
-
-    response = await client.get(f"/api/papers/{paper_id}")
+    response = await client.get(f"/api/papers/{paper.id}")
 
     assert response.status_code == 200
-    assert response.json()["title"] == "Test Paper"
+    data = response.json()
+    assert data["title"] == "Test Paper"
+    assert data["status"] == "pending"
+    assert len(data["steps"]) == 6
 
 
 @pytest.mark.asyncio
@@ -193,38 +188,22 @@ async def test_get_paper_not_found(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_paper(client, db):
+async def test_delete_paper(client, paper_factory):
     """DELETE /api/papers/:id -> 204."""
-    from app.papers.models import Paper
+    paper = await paper_factory()
 
-    paper_id = uuid.uuid4()
-    db.add(Paper(
-        id=paper_id,
-        source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
-    ))
-    await db.commit()
-
-    response = await client.delete(f"/api/papers/{paper_id}")
+    response = await client.delete(f"/api/papers/{paper.id}")
 
     assert response.status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_update_paper_metadata(client, db):
+async def test_update_paper_metadata(client, paper_factory):
     """PATCH /api/papers/:id -> update metadata."""
-    from app.papers.models import Paper
-
-    paper_id = uuid.uuid4()
-    db.add(Paper(
-        id=paper_id,
-        source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
-    ))
-    await db.commit()
+    paper = await paper_factory()
 
     response = await client.patch(
-        f"/api/papers/{paper_id}",
+        f"/api/papers/{paper.id}",
         json={"title": "Updated Title", "journal": "Science"},
     )
 
@@ -240,18 +219,23 @@ async def test_update_paper_metadata(client, db):
 @pytest.mark.asyncio
 async def test_get_paper_file_ok(client, db, tmp_upload_dir):
     """GET /api/papers/:id/file -> download PDF."""
+    from app.core.enums import StepName
     from app.papers.models import Paper
+    from app.processing.models import PaperStep
 
     paper_id = uuid.uuid4()
     file_path = Path(tmp_upload_dir) / f"{paper_id}.pdf"
     file_path.write_bytes(b"%PDF-1.4 test content")
 
-    db.add(Paper(
+    paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
         file_path=str(file_path),
-    ))
+    )
+    db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
     response = await client.get(f"/api/papers/{paper_id}/file")
@@ -262,19 +246,11 @@ async def test_get_paper_file_ok(client, db, tmp_upload_dir):
 
 
 @pytest.mark.asyncio
-async def test_get_paper_file_no_file(client, db):
+async def test_get_paper_file_no_file(client, paper_factory):
     """GET /api/papers/:id/file with no file_path -> 404."""
-    from app.papers.models import Paper
+    paper = await paper_factory(source_type=SourceType.WEB)
 
-    paper_id = uuid.uuid4()
-    db.add(Paper(
-        id=paper_id,
-        source_type=SourceType.WEB,
-        status=PaperStatus.UPLOADING,
-    ))
-    await db.commit()
-
-    response = await client.get(f"/api/papers/{paper_id}/file")
+    response = await client.get(f"/api/papers/{paper.id}/file")
 
     assert response.status_code == 404
     assert "NO_FILE" in response.json()["error"]["code"]
@@ -284,17 +260,10 @@ async def test_get_paper_file_no_file(client, db):
 
 
 @pytest.mark.asyncio
-async def test_list_papers_pagination(client, db):
+async def test_list_papers_pagination(client, paper_factory):
     """GET /api/papers?skip=1&limit=2 -> paginated results."""
-    from app.papers.models import Paper
-
     for _i in range(5):
-        db.add(Paper(
-            id=uuid.uuid4(),
-            source_type=SourceType.PDF,
-            status=PaperStatus.UPLOADING,
-        ))
-    await db.commit()
+        await paper_factory()
 
     response = await client.get("/api/papers?skip=1&limit=2")
 
@@ -307,19 +276,23 @@ async def test_list_papers_pagination(client, db):
 
 @pytest.mark.asyncio
 async def test_get_paper_file_deleted_from_disk(client, db, tmp_upload_dir):
-    """GET /api/papers/:id/file when file_path exists in DB but file is missing on disk -> 404."""
+    """GET /api/papers/:id/file when file is missing on disk -> 404."""
+    from app.core.enums import StepName
     from app.papers.models import Paper
+    from app.processing.models import PaperStep
 
     paper_id = uuid.uuid4()
     file_path = Path(tmp_upload_dir) / f"{paper_id}.pdf"
-    # file_path is set in DB but the file does NOT exist on disk
 
-    db.add(Paper(
+    paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
         file_path=str(file_path),
-    ))
+    )
+    db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
     response = await client.get(f"/api/papers/{paper_id}/file")
@@ -330,19 +303,23 @@ async def test_get_paper_file_deleted_from_disk(client, db, tmp_upload_dir):
 
 @pytest.mark.asyncio
 async def test_get_paper_file_path_traversal(client, db, tmp_upload_dir):
-    """GET /api/papers/:id/file with file_path outside UPLOAD_DIR -> 404 (path traversal blocked)."""
+    """GET /api/papers/:id/file with path outside UPLOAD_DIR -> 404."""
+    from app.core.enums import StepName
     from app.papers.models import Paper
+    from app.processing.models import PaperStep
 
     paper_id = uuid.uuid4()
-    # Point to a file outside the upload directory
     malicious_path = str(Path(tmp_upload_dir).parent / "etc" / "passwd")
 
-    db.add(Paper(
+    paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF,
-        status=PaperStatus.UPLOADING,
         file_path=malicious_path,
-    ))
+    )
+    db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
     response = await client.get(f"/api/papers/{paper_id}/file")

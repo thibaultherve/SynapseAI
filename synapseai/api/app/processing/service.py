@@ -3,19 +3,51 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.config import processing_settings
 from app.core.database import async_session
-from app.core.enums import PaperStatus, SourceType
+from app.core.enums import SourceType, StepName, StepStatus
 from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries
 from app.processing.events import notify_paper_update
-from app.processing.models import ProcessingEvent
+from app.processing.models import PaperStep, ProcessingEvent
 from app.utils.text_extraction import extract_pdf_text, extract_web_text
 from app.utils.url_validator import fetch_url_content
 
 logger = logging.getLogger(__name__)
 
 _processing_semaphore = asyncio.Semaphore(processing_settings.MAX_CONCURRENT_PROCESSING)
+
+
+# ---------------------------------------------------------------------------
+# Step helpers
+# ---------------------------------------------------------------------------
+
+def _get_step(paper: Paper, step_name: StepName) -> PaperStep:
+    for s in paper.steps:
+        if s.step == step_name.value:
+            return s
+    raise ValueError(f"Step '{step_name.value}' not found for paper {paper.id}")
+
+
+def _mark_processing(step: PaperStep):
+    step.status = StepStatus.PROCESSING.value
+    step.started_at = datetime.now(UTC).replace(tzinfo=None)
+    step.error_message = None
+    step.completed_at = None
+
+
+def _mark_done(step: PaperStep):
+    step.status = StepStatus.DONE.value
+    step.completed_at = datetime.now(UTC).replace(tzinfo=None)
+
+
+def _mark_error(step: PaperStep, message: str):
+    step.status = StepStatus.ERROR.value
+    step.error_message = message[:1000]
+    step.completed_at = datetime.now(UTC).replace(tzinfo=None)
 
 
 async def _log_event(db, paper_id: uuid.UUID, step: str, detail: str):
@@ -25,61 +57,120 @@ async def _log_event(db, paper_id: uuid.UUID, step: str, detail: str):
     notify_paper_update(str(paper_id))
 
 
-async def _update_status(db, paper: Paper, status: PaperStatus):
-    paper.status = status.value
-    await db.commit()
-    notify_paper_update(str(paper.id))
+async def _ensure_steps(db, paper: Paper):
+    """Create 6 paper_step rows if they don't exist yet."""
+    if not paper.steps:
+        for step_name in StepName:
+            db.add(PaperStep(paper_id=paper.id, step=step_name.value))
+        await db.flush()
+        await db.refresh(paper, ["steps"])
 
+
+# ---------------------------------------------------------------------------
+# can_retry — precondition checks for step retry
+# ---------------------------------------------------------------------------
+
+def can_retry(paper: Paper, step_name: str) -> tuple[bool, str]:
+    """Check prerequisites for retrying a step. Returns (ok, reason)."""
+    preconditions = {
+        StepName.UPLOADING.value: lambda p: True,
+        StepName.EXTRACTING.value: lambda p: bool(p.url or p.file_path),
+        StepName.SUMMARIZING.value: lambda p: bool(p.extracted_text),
+        StepName.TAGGING.value: lambda p: bool(p.short_summary),
+        StepName.EMBEDDING.value: lambda p: bool(p.extracted_text),
+        StepName.CROSSREFING.value: lambda p: False,  # Not available in Sprint 3
+    }
+
+    check = preconditions.get(step_name)
+    if check is None:
+        return False, f"Unknown step: {step_name}"
+
+    if not check(paper):
+        return False, f"Prerequisites not met for retrying '{step_name}'"
+
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Main processing pipeline
+# ---------------------------------------------------------------------------
 
 async def process_paper(paper_id: uuid.UUID):
     """Background task: process a paper through the pipeline."""
     async with _processing_semaphore, async_session() as db:
+        paper = await db.get(
+            Paper, paper_id, options=[selectinload(Paper.steps)]
+        )
+        if not paper:
+            logger.error("Paper %s not found", paper_id)
+            return
+
+        await _ensure_steps(db, paper)
+
+        current_step_name: str | None = None
         try:
-            paper = await db.get(Paper, paper_id)
-            if not paper:
-                logger.error("Paper %s not found", paper_id)
-                return
+            # Step 1: Upload / Download
+            uploading = _get_step(paper, StepName.UPLOADING)
+            web_content: bytes | None = None
+            if uploading.status != StepStatus.DONE:
+                current_step_name = StepName.UPLOADING.value
+                _mark_processing(uploading)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+                await _log_event(db, paper_id, "uploading", "Preparing content...")
 
-            # Step 1: Download (URL/DOI only) + Extract
-            if not paper.extracted_text:
                 if paper.source_type == SourceType.WEB and paper.url:
-                    await _log_event(
-                        db, paper_id, "downloading", "Downloading content from URL..."
-                    )
-                    await _update_status(db, paper, PaperStatus.UPLOADING)
-                    content = await fetch_url_content(paper.url)
-                    html_content = content.decode("utf-8", errors="replace")
+                    web_content = await fetch_url_content(paper.url)
 
-                    await _log_event(
-                        db, paper_id, "extracting", "Extracting text from web page..."
-                    )
-                    await _update_status(db, paper, PaperStatus.EXTRACTING)
-                    paper.extracted_text = await extract_web_text(html_content)
+                _mark_done(uploading)
+                await db.commit()
+                notify_paper_update(str(paper_id))
 
+            # Step 2: Extract text
+            extracting = _get_step(paper, StepName.EXTRACTING)
+            if extracting.status != StepStatus.DONE:
+                current_step_name = StepName.EXTRACTING.value
+                _mark_processing(extracting)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+                await _log_event(db, paper_id, "extracting", "Extracting text...")
+
+                if paper.source_type == SourceType.WEB:
+                    if web_content is None and paper.url:
+                        web_content = await fetch_url_content(paper.url)
+                    html = (
+                        web_content.decode("utf-8", errors="replace")
+                        if web_content
+                        else ""
+                    )
+                    paper.extracted_text = await extract_web_text(html)
                 elif paper.source_type == SourceType.PDF and paper.file_path:
-                    await _log_event(
-                        db, paper_id, "extracting", "Extracting text from PDF..."
-                    )
-                    await _update_status(db, paper, PaperStatus.EXTRACTING)
                     paper.extracted_text = await extract_pdf_text(paper.file_path)
 
                 paper.word_count = (
                     len(paper.extracted_text.split()) if paper.extracted_text else 0
                 )
+
+                if not paper.extracted_text:
+                    raise ValueError("No text content could be extracted")
+
+                _mark_done(extracting)
                 await db.commit()
+                notify_paper_update(str(paper_id))
 
-            if not paper.extracted_text:
-                raise ValueError("No text content could be extracted")
-
-            # Step 2: Summarize (skip if short_summary exists)
-            if not paper.short_summary:
+            # Step 3: Summarize
+            summarizing = _get_step(paper, StepName.SUMMARIZING)
+            if summarizing.status != StepStatus.DONE:
+                current_step_name = StepName.SUMMARIZING.value
+                _mark_processing(summarizing)
+                await db.commit()
+                notify_paper_update(str(paper_id))
                 await _log_event(
                     db, paper_id, "summarizing", "Generating summaries with Claude..."
                 )
-                await _update_status(db, paper, PaperStatus.SUMMARIZING)
+
                 summaries = await generate_summaries(paper.extracted_text)
 
-                # Apply metadata (only if not already set)
                 if not paper.title:
                     paper.title = summaries.title
                 if not paper.authors:
@@ -95,19 +186,35 @@ async def process_paper(paper_id: uuid.UUID):
                 paper.detailed_summary = summaries.detailed_summary
                 paper.key_findings = summaries.key_findings
                 paper.keywords = summaries.keywords
-                await db.commit()
 
-            # Done (Sprint 2 terminal)
+                _mark_done(summarizing)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+
+            # Steps tagging, embedding, crossrefing stay pending (future phases)
+
+            # Terminal (Sprint 2)
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)
-            await _update_status(db, paper, PaperStatus.SUMMARIZED)
-            await _log_event(db, paper_id, "summarized", "Processing complete")
+            await db.commit()
+            await _log_event(db, paper_id, "complete", "Processing complete")
 
         except Exception as e:
             logger.exception("Processing failed for paper %s", paper_id)
             async with async_session() as err_db:
-                paper = await err_db.get(Paper, paper_id)
-                if paper:
-                    paper.status = PaperStatus.ERROR.value
-                    paper.error_message = str(e)[:1000]
-                    await err_db.commit()
-                    notify_paper_update(str(paper_id))
+                if current_step_name:
+                    result = await err_db.execute(
+                        select(PaperStep).where(
+                            PaperStep.paper_id == paper_id,
+                            PaperStep.step == current_step_name,
+                        )
+                    )
+                    err_step = result.scalar_one_or_none()
+                    if err_step:
+                        _mark_error(err_step, str(e))
+                        await err_db.commit()
+                        notify_paper_update(str(paper_id))
+                else:
+                    logger.error(
+                        "Processing error for paper %s before any step started: %s",
+                        paper_id, e,
+                    )

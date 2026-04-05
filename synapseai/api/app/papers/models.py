@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     ARRAY,
@@ -15,9 +15,12 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base
+
+if TYPE_CHECKING:
+    from app.processing.models import PaperStep
 
 
 class Paper(Base):
@@ -26,11 +29,6 @@ class Paper(Base):
         CheckConstraint(
             "source_type IN ('pdf', 'web')",
             name="valid_source_type",
-        ),
-        CheckConstraint(
-            "status IN ('uploading', 'extracting', 'summarizing', 'summarized', "
-            "'tagging', 'embedding', 'crossrefing', 'done', 'error', 'deleted')",
-            name="valid_status",
         ),
     )
 
@@ -46,8 +44,6 @@ class Paper(Base):
     doi: Mapped[str | None] = mapped_column(Text, unique=True)
     url: Mapped[str | None] = mapped_column(Text)
     source_type: Mapped[str | None] = mapped_column(String(10))
-    status: Mapped[str] = mapped_column(String(20), server_default="uploading")
-    error_message: Mapped[str | None] = mapped_column(Text)
     extracted_text: Mapped[str | None] = mapped_column(Text)
     short_summary: Mapped[str | None] = mapped_column(Text)
     detailed_summary: Mapped[str | None] = mapped_column(Text)
@@ -69,6 +65,11 @@ class Paper(Base):
             "coalesce(extracted_text, ''))",
             persisted=True,
         ),
+    )
+
+    steps: Mapped[list["PaperStep"]] = relationship(
+        back_populates="paper",
+        lazy="selectin",
     )
 
 

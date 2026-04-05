@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.database import engine, get_db
 from app.core.exceptions import AppError
+from app.core.schemas import HealthResponse
 from app.papers.router import router as papers_router
 from app.processing.router import router as processing_router
 
@@ -93,7 +94,13 @@ app.include_router(papers_router)
 app.include_router(processing_router)
 
 
-@app.get("/api/health")
+@app.get(
+    "/api/health",
+    response_model=HealthResponse,
+    status_code=200,
+    description="Check API and database connectivity.",
+    tags=["health"],
+)
 async def health(db: AsyncSession = Depends(get_db)):
     await db.execute(text("SELECT 1"))
     return {"status": "ok", "database": "connected"}

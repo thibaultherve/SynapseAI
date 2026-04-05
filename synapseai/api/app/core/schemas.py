@@ -10,6 +10,11 @@ class AppBaseModel(BaseModel):
     )
 
 
+class HealthResponse(AppBaseModel):
+    status: str
+    database: str
+
+
 class ErrorDetail(AppBaseModel):
     code: str
     message: str
