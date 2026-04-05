@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -10,9 +11,11 @@ from app.config import processing_settings
 from app.core.database import async_session
 from app.core.enums import SourceType, StepName, StepStatus
 from app.papers.models import Paper
-from app.processing.claude_service import generate_summaries
+from app.processing.claude_service import generate_summaries, generate_tags
 from app.processing.events import notify_paper_update
 from app.processing.models import PaperStep, ProcessingEvent
+from app.tags.models import Tag
+from app.tags.service import link_tags_to_paper, resolve_tags
 from app.utils.text_extraction import extract_pdf_text, extract_web_text
 from app.utils.url_validator import fetch_url_content
 
@@ -191,9 +194,45 @@ async def process_paper(paper_id: uuid.UUID):
                 await db.commit()
                 notify_paper_update(str(paper_id))
 
-            # Steps tagging, embedding, crossrefing stay pending (future phases)
+            # Step 4: Tagging
+            tagging = _get_step(paper, StepName.TAGGING)
+            if tagging.status != StepStatus.DONE:
+                current_step_name = StepName.TAGGING.value
+                _mark_processing(tagging)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+                await _log_event(
+                    db, paper_id, "tagging", "Assigning tags with Claude..."
+                )
 
-            # Terminal (Sprint 2)
+                # Build existing tags JSON for the prompt
+                tag_result = await db.execute(
+                    select(Tag).order_by(Tag.category, Tag.name)
+                )
+                all_tags = list(tag_result.scalars().all())
+                existing_tags_json = json.dumps([
+                    {"id": t.id, "name": t.name, "category": t.category}
+                    for t in all_tags
+                ])
+                existing_tag_ids = {t.id for t in all_tags}
+
+                tag_entries = await generate_tags(
+                    paper.extracted_text,
+                    paper.short_summary,
+                    existing_tags_json,
+                    existing_tag_ids,
+                )
+
+                tags = await resolve_tags(db, tag_entries)
+                await link_tags_to_paper(db, paper.id, tags)
+
+                _mark_done(tagging)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+
+            # Steps embedding, crossrefing stay pending (future phases)
+
+            # Terminal
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)
             await db.commit()
             await _log_event(db, paper_id, "complete", "Processing complete")

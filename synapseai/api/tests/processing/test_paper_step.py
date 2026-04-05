@@ -63,10 +63,17 @@ async def test_step_transitions_pdf_success(db, tmp_upload_dir, mock_claude):
     db.add(paper)
     await db.commit()
 
-    with patch(
-        "app.processing.service.extract_pdf_text",
-        new_callable=AsyncMock,
-        return_value="Extracted text from test PDF.",
+    with (
+        patch(
+            "app.processing.service.extract_pdf_text",
+            new_callable=AsyncMock,
+            return_value="Extracted text from test PDF.",
+        ),
+        patch(
+            "app.processing.service.generate_tags",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         await process_paper(paper_id)
 
@@ -76,13 +83,13 @@ async def test_step_transitions_pdf_success(db, tmp_upload_dir, mock_claude):
         )).scalars().all()
         step_map = {s.step: s for s in steps}
 
-        # First 3 steps should be done with timestamps
-        for name in ("uploading", "extracting", "summarizing"):
+        # First 4 steps should be done with timestamps
+        for name in ("uploading", "extracting", "summarizing", "tagging"):
             assert step_map[name].status == StepStatus.DONE
             assert step_map[name].completed_at is not None
 
         # Remaining steps stay pending
-        for name in ("tagging", "embedding", "crossrefing"):
+        for name in ("embedding", "crossrefing"):
             assert step_map[name].status == StepStatus.PENDING
 
 

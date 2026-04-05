@@ -21,6 +21,7 @@ from app.core.base import Base
 
 if TYPE_CHECKING:
     from app.processing.models import PaperStep
+    from app.tags.models import Tag
 
 
 class Paper(Base):
@@ -69,6 +70,10 @@ class Paper(Base):
 
     steps: Mapped[list["PaperStep"]] = relationship(
         back_populates="paper",
+        lazy="selectin",
+    )
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary="paper_tag",
         lazy="selectin",
     )
 

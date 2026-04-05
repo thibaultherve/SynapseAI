@@ -17,6 +17,7 @@ from app.core.exceptions import AppError
 from app.core.schemas import HealthResponse
 from app.papers.router import router as papers_router
 from app.processing.router import router as processing_router
+from app.tags.router import router as tags_router
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(papers_router)
 app.include_router(processing_router)
+app.include_router(tags_router)
 
 
 @app.get(

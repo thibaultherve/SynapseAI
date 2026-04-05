@@ -138,10 +138,17 @@ async def test_processing_pipeline_pdf(db, tmp_upload_dir, mock_claude):
     # Steps will be created by _ensure_steps in process_paper
     await db.commit()
 
-    with patch(
-        "app.processing.service.extract_pdf_text",
-        new_callable=AsyncMock,
-        return_value="Extracted text from the test PDF document.",
+    with (
+        patch(
+            "app.processing.service.extract_pdf_text",
+            new_callable=AsyncMock,
+            return_value="Extracted text from the test PDF document.",
+        ),
+        patch(
+            "app.processing.service.generate_tags",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         await process_paper(paper_id)
 
@@ -162,7 +169,7 @@ async def test_processing_pipeline_pdf(db, tmp_upload_dir, mock_claude):
         assert step_map["uploading"] == "done"
         assert step_map["extracting"] == "done"
         assert step_map["summarizing"] == "done"
-        assert step_map["tagging"] == "pending"
+        assert step_map["tagging"] == "done"
 
 
 # --- Edge cases: SSE limits ---
