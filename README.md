@@ -93,8 +93,8 @@ synapseai/
 
 ```bash
 # Clone the repository
-git clone https://github.com/thibaultherve/NeuroAI.git
-cd NeuroAI
+git clone https://github.com/thibaultherve/SynapseAI.git
+cd SynapseAI
 
 # Configure environment
 cp .env.example .env
