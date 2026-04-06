@@ -1,11 +1,14 @@
 import uuid
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.enums import SourceType
+from app.core.enums import SourceType, StepName
+from app.papers.models import PaperTag
+from app.tags.models import Tag
 
 # --- Upload PDF ---
 
@@ -352,3 +355,153 @@ async def test_update_paper_not_found(client):
 
     assert response.status_code == 404
     assert "PAPER_NOT_FOUND" in response.json()["error"]["code"]
+
+
+# --- Phase 5c: Advanced Filters ---
+
+
+@pytest.mark.asyncio
+async def test_filter_by_tag_single_and_multi(client, paper_factory, db):
+    """T17: Filter papers by tag IDs (OR logic)."""
+    p1 = await paper_factory(title="Paper A")
+    p2 = await paper_factory(title="Paper B")
+    await paper_factory(title="Paper C")  # no tags
+
+    tag1 = Tag(name="neuroscience", category="sub_domain")
+    tag2 = Tag(name="fMRI", category="technique")
+    db.add_all([tag1, tag2])
+    await db.flush()
+
+    db.add(PaperTag(paper_id=p1.id, tag_id=tag1.id))
+    db.add(PaperTag(paper_id=p2.id, tag_id=tag2.id))
+    await db.commit()
+
+    # Single tag
+    resp = await client.get(f"/api/papers?tags={tag1.id}")
+    assert resp.status_code == 200
+    ids = [p["id"] for p in resp.json()]
+    assert str(p1.id) in ids
+    assert str(p2.id) not in ids
+
+    # Multi tags (OR)
+    resp = await client.get(f"/api/papers?tags={tag1.id}&tags={tag2.id}")
+    assert resp.status_code == 200
+    ids = [p["id"] for p in resp.json()]
+    assert str(p1.id) in ids
+    assert str(p2.id) in ids
+
+
+@pytest.mark.asyncio
+async def test_filter_by_state(client, paper_factory):
+    """T18: Filter papers by derived state (readable, error)."""
+    # readable = summarizing done, but not all non-crossref done
+    await paper_factory(
+        title="Readable",
+        steps={
+            "uploading": "done",
+            "extracting": "done",
+            "summarizing": "done",
+            "tagging": "pending",
+            "embedding": "pending",
+            "crossrefing": "pending",
+        },
+    )
+    # error
+    await paper_factory(
+        title="Errored",
+        steps={
+            "uploading": "done",
+            "extracting": "error",
+            "summarizing": "pending",
+            "tagging": "pending",
+            "embedding": "pending",
+            "crossrefing": "pending",
+        },
+    )
+    # pending
+    await paper_factory(title="Pending")
+
+    resp = await client.get("/api/papers?state=readable")
+    assert resp.status_code == 200
+    titles = [p["title"] for p in resp.json()]
+    assert "Readable" in titles
+    assert "Errored" not in titles
+    assert "Pending" not in titles
+
+    resp = await client.get("/api/papers?state=error")
+    titles = [p["title"] for p in resp.json()]
+    assert "Errored" in titles
+    assert "Readable" not in titles
+
+
+@pytest.mark.asyncio
+async def test_filter_by_date_range(client, paper_factory):
+    """T19: Filter papers by publication date range."""
+    await paper_factory(title="Old", publication_date=date(2023, 1, 15))
+    await paper_factory(title="Mid", publication_date=date(2024, 6, 1))
+    await paper_factory(title="New", publication_date=date(2025, 3, 10))
+    await paper_factory(title="No date")  # null publication_date
+
+    resp = await client.get("/api/papers?date_from=2024-01-01&date_to=2024-12-31")
+    assert resp.status_code == 200
+    titles = [p["title"] for p in resp.json()]
+    assert "Mid" in titles
+    assert "Old" not in titles
+    assert "New" not in titles
+    assert "No date" not in titles
+
+
+@pytest.mark.asyncio
+async def test_filter_fts(client, paper_factory):
+    """T20: Full-text search via q param (websearch_to_tsquery)."""
+    await paper_factory(
+        title="Dopamine Reward Circuits",
+        short_summary="A study on dopamine pathways in the brain.",
+    )
+    await paper_factory(
+        title="Protein Folding Mechanisms",
+        short_summary="Analysis of protein structure prediction.",
+    )
+
+    resp = await client.get("/api/papers?q=dopamine+reward")
+    assert resp.status_code == 200
+    titles = [p["title"] for p in resp.json()]
+    assert "Dopamine Reward Circuits" in titles
+    assert "Protein Folding Mechanisms" not in titles
+
+
+@pytest.mark.asyncio
+async def test_filter_combination(client, paper_factory, db):
+    """T21: Combine multiple filters together."""
+    p1 = await paper_factory(
+        title="Target Paper",
+        publication_date=date(2024, 5, 1),
+        short_summary="Oligodendrocyte precursor cells study.",
+        steps={
+            "uploading": "done",
+            "extracting": "done",
+            "summarizing": "done",
+            "tagging": "pending",
+            "embedding": "pending",
+            "crossrefing": "pending",
+        },
+    )
+    await paper_factory(
+        title="Wrong State",
+        publication_date=date(2024, 5, 1),
+        short_summary="Oligodendrocyte analysis.",
+    )  # pending state
+
+    tag = Tag(name="neuroscience", category="sub_domain")
+    db.add(tag)
+    await db.flush()
+    db.add(PaperTag(paper_id=p1.id, tag_id=tag.id))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/papers?tags={tag.id}&state=readable&date_from=2024-01-01&q=oligodendrocyte"
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Target Paper"

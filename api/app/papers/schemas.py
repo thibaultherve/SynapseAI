@@ -85,6 +85,12 @@ class PaperResponse(AppBaseModel):
         return compute_paper_status(self.steps)
 
 
+class TagBriefResponse(AppBaseModel):
+    id: int
+    name: str
+    category: str
+
+
 class PaperSummaryResponse(AppBaseModel):
     id: uuid.UUID
     title: str | None = None
@@ -93,6 +99,7 @@ class PaperSummaryResponse(AppBaseModel):
     doi: str | None = None
     source_type: SourceType | None = None
     steps: list[PaperStepResponse] = []
+    tags: list[TagBriefResponse] = []
     short_summary: str | None = None
     keywords: list[str] | None = None
     word_count: int | None = None
