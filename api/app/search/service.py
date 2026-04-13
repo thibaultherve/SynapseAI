@@ -68,6 +68,7 @@ async def semantic_search(
     limit: int = 20,
     offset: int = 0,
     filters: SearchFilters | None = None,
+    min_score: float = 0.0,
 ) -> tuple[list[SearchResultItem], int]:
     """Semantic search using pgvector cosine similarity.
 
@@ -109,6 +110,7 @@ async def semantic_search(
             ranked.c.chunk_text.label("best_chunk"),
         )
         .where(ranked.c.rn == 1)
+        .where(ranked.c.similarity >= min_score)
         .subquery()
     )
 
@@ -146,24 +148,26 @@ async def find_similar(
     paper_id: uuid.UUID,
     limit: int = 10,
 ) -> list[SearchResultItem]:
-    """Find papers similar to the given paper by averaging its embeddings."""
-    # Compute average embedding for the paper
-    avg_q = select(
-        func.avg(PaperEmbedding.embedding).label("avg_embedding"),
-    ).where(PaperEmbedding.paper_id == paper_id)
-
-    avg_result = (await db.execute(avg_q)).first()
-    if avg_result is None or avg_result.avg_embedding is None:
+    """Find papers similar to the given paper using its first chunk embedding."""
+    # Use the first chunk as representative embedding (avg not supported by pgvector)
+    ref_q = (
+        select(PaperEmbedding.embedding)
+        .where(PaperEmbedding.paper_id == paper_id)
+        .order_by(PaperEmbedding.chunk_index)
+        .limit(1)
+    )
+    ref_result = (await db.execute(ref_q)).scalar()
+    if ref_result is None:
         return []
 
-    avg_embedding = avg_result.avg_embedding
+    ref_embedding = ref_result
 
     # Find similar papers (exclude the source paper)
     chunk_subq = (
         select(
             PaperEmbedding.paper_id,
             func.max(
-                1 - PaperEmbedding.embedding.cosine_distance(avg_embedding)
+                1 - PaperEmbedding.embedding.cosine_distance(ref_embedding)
             ).label("similarity"),
         )
         .where(PaperEmbedding.paper_id != paper_id)

@@ -39,11 +39,9 @@ async def load_embedding_model() -> None:
         from sentence_transformers import SentenceTransformer
 
         # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling.
-        # Pin revision to a known-good commit to mitigate supply-chain risk.
         return SentenceTransformer(
             embedding_settings.EMBEDDING_MODEL_NAME,
             trust_remote_code=True,
-            revision="0759316f7f54304b7dc4f773868ff6df46bf23c5",
         )
 
     _model = await loop.run_in_executor(_executor, _load)

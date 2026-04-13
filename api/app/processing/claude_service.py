@@ -31,16 +31,19 @@ async def call_claude(prompt: str, timeout: float | None = None) -> str:
     process = await asyncio.create_subprocess_exec(
         "claude",
         "-p",
-        prompt,
+        "-",
         "--output-format",
         "json",
         "--max-turns",
         "1",
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     try:
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(input=prompt.encode()), timeout=timeout
+        )
     except TimeoutError as exc:
         process.kill()
         await process.wait()
@@ -49,11 +52,23 @@ async def call_claude(prompt: str, timeout: float | None = None) -> str:
         ) from exc
 
     if process.returncode != 0:
-        err_msg = stderr.decode()[:500]
+        err_msg = (stderr.decode() + stdout.decode())[:500]
         raise ClaudeError(ErrorCode.CLAUDE_ERROR, f"Claude CLI failed: {err_msg}")
 
     try:
         data = json.loads(stdout.decode())
+        # --output-format json returns a list of messages.
+        # Extract the text from the last assistant message.
+        if isinstance(data, list):
+            for msg in reversed(data):
+                if msg.get("type") == "assistant" and "message" in msg:
+                    # message contains content blocks
+                    content = msg["message"].get("content", [])
+                    texts = [b["text"] for b in content if b.get("type") == "text"]
+                    if texts:
+                        return "\n".join(texts)
+            # Fallback: return raw stdout
+            return stdout.decode()
         return data.get("result", stdout.decode())
     except json.JSONDecodeError as e:
         raise ClaudeError(

@@ -58,6 +58,12 @@ class PaperStepResponse(AppBaseModel):
     completed_at: datetime | None = None
 
 
+class TagBriefResponse(AppBaseModel):
+    id: int
+    name: str
+    category: str
+
+
 class PaperResponse(AppBaseModel):
     id: uuid.UUID
     title: str | None = None
@@ -69,6 +75,7 @@ class PaperResponse(AppBaseModel):
     url: str | None = None
     source_type: SourceType | None = None
     steps: list[PaperStepResponse] = []
+    tags: list[TagBriefResponse] = []
     extracted_text: str | None = None
     short_summary: str | None = None
     detailed_summary: str | None = None
@@ -83,12 +90,6 @@ class PaperResponse(AppBaseModel):
     @property
     def status(self) -> DerivedPaperStatus:
         return compute_paper_status(self.steps)
-
-
-class TagBriefResponse(AppBaseModel):
-    id: int
-    name: str
-    category: str
 
 
 class PaperSummaryResponse(AppBaseModel):

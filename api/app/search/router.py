@@ -7,7 +7,7 @@ from app.papers.dependencies import get_paper_or_404
 from app.papers.models import Paper
 from app.ratelimit import limiter
 from app.search import service
-from app.search.schemas import SearchMode, SearchRequest, SearchResponse, SearchResultItem
+from app.search.schemas import TOLERANCE_THRESHOLDS, SearchMode, SearchRequest, SearchResponse, SearchResultItem
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -29,8 +29,9 @@ async def search_papers(
     db: AsyncSession = Depends(get_db),
 ):
     if body.mode == SearchMode.SEMANTIC:
+        min_score = TOLERANCE_THRESHOLDS[body.tolerance]
         results, total = await service.semantic_search(
-            db, body.query, body.limit, body.offset, body.filters
+            db, body.query, body.limit, body.offset, body.filters, min_score
         )
     else:
         results, total = await service.full_text_search(

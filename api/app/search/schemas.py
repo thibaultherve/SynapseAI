@@ -18,9 +18,19 @@ class SearchFilters(AppBaseModel):
     date_to: date | None = None
 
 
+TOLERANCE_THRESHOLDS = {
+    1: 0.80,  # Very strict — near-exact topic match
+    2: 0.75,  # Strict
+    3: 0.70,  # Moderate
+    4: 0.60,  # Loose
+    5: 0.0,   # Everything
+}
+
+
 class SearchRequest(AppBaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     mode: SearchMode = SearchMode.EXACT
+    tolerance: int = Field(3, ge=1, le=5, description="Semantic tolerance: 1=very strict, 5=everything")
     limit: int = Field(20, ge=1, le=100)
     offset: int = Field(0, ge=0)
     filters: SearchFilters | None = None

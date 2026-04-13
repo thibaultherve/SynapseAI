@@ -13,3 +13,5 @@ venv/
 uploads/
 .gitnexus
 excalidraw.log
+
+*.pdf
