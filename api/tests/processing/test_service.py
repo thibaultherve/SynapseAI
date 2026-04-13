@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.core.database import async_session
 from app.core.enums import SourceType
 from app.papers.models import Paper, PaperTag
-from app.processing.models import PaperStep
+from app.processing.models import PaperEmbedding, PaperStep
 from app.tags.models import Tag
 
 
@@ -54,8 +54,8 @@ async def test_process_paper_no_text_extracted(db, tmp_upload_dir, mock_claude):
 
 
 @pytest.mark.asyncio
-async def test_process_paper_web_pipeline(db, mock_claude):
-    """process_paper with web source -> downloads, extracts, summarizes."""
+async def test_process_paper_web_pipeline(db, mock_claude, mock_embedding):
+    """process_paper with web source -> downloads, extracts, summarizes, embeds."""
     from app.processing.service import process_paper
 
     paper_id = uuid.uuid4()
@@ -100,6 +100,7 @@ async def test_process_paper_web_pipeline(db, mock_claude):
         assert step_map["extracting"] == "done"
         assert step_map["summarizing"] == "done"
         assert step_map["tagging"] == "done"
+        assert step_map["embedding"] == "done"
 
 
 @pytest.mark.asyncio
@@ -186,7 +187,7 @@ def _make_mock_claude_for_tagging():
 
 
 @pytest.mark.asyncio
-async def test_process_paper_tagging_step(db):
+async def test_process_paper_tagging_step(db, mock_embedding):
     """process_paper runs tagging step after summarizing, assigns tags to paper."""
     from app.processing.service import process_paper
 
@@ -239,3 +240,59 @@ async def test_process_paper_tagging_step(db):
             select(PaperTag).where(PaperTag.paper_id == paper_id)
         )).scalars().all()
         assert len(paper_tags) == 2
+
+
+# --- T24: Pipeline embedding step ---
+
+
+@pytest.mark.asyncio
+async def test_process_paper_embedding_step(db, mock_claude, mock_embedding):
+    """process_paper runs embedding step: chunks text, encodes, stores embeddings."""
+    from app.processing.service import process_paper
+
+    paper_id = uuid.uuid4()
+    paper = Paper(
+        id=paper_id,
+        source_type=SourceType.WEB.value,
+        url="https://example.com/paper",
+    )
+    db.add(paper)
+    await db.commit()
+
+    with (
+        patch(
+            "app.processing.service.fetch_url_content",
+            new_callable=AsyncMock,
+            return_value=b"<html><body>Research content</body></html>",
+        ),
+        patch(
+            "app.processing.service.extract_web_text",
+            new_callable=AsyncMock,
+            return_value="This is a research paper about neuroscience. "
+            "It covers many topics in depth. " * 20,
+        ),
+        patch(
+            "app.processing.service.generate_tags",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        await process_paper(paper_id)
+
+    async with async_session() as verify_db:
+        # Verify embedding step is done
+        steps = (await verify_db.execute(
+            select(PaperStep).where(PaperStep.paper_id == paper_id)
+        )).scalars().all()
+        step_map = {s.step: s.status for s in steps}
+        assert step_map["embedding"] == "done"
+
+        # Verify embeddings were stored
+        embeddings = (await verify_db.execute(
+            select(PaperEmbedding).where(PaperEmbedding.paper_id == paper_id)
+        )).scalars().all()
+        assert len(embeddings) > 0
+        # Each embedding should have a chunk_text and chunk_index
+        for emb in embeddings:
+            assert emb.chunk_text is not None
+            assert emb.chunk_index >= 0

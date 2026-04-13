@@ -5,23 +5,27 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
-from app.config import processing_settings
+from app.config import embedding_settings, processing_settings
 from app.core.database import async_session
 from app.core.enums import SourceType, StepName, StepStatus
 from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries, generate_tags
+from app.processing.embedding_service import encode_batch
 from app.processing.events import notify_paper_update
-from app.processing.models import PaperStep, ProcessingEvent
+from app.processing.models import PaperEmbedding, PaperStep, ProcessingEvent
 from app.tags.models import Tag
 from app.tags.service import link_tags_to_paper, resolve_tags
+from app.utils.chunking import chunk_text
 from app.utils.text_extraction import extract_pdf_text, extract_web_text
 from app.utils.url_validator import fetch_url_content
 
 logger = logging.getLogger(__name__)
 
 _processing_semaphore = asyncio.Semaphore(processing_settings.MAX_CONCURRENT_PROCESSING)
+_embedding_semaphore = asyncio.Semaphore(1)
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +96,44 @@ def can_retry(paper: Paper, step_name: str) -> tuple[bool, str]:
         return False, f"Prerequisites not met for retrying '{step_name}'"
 
     return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Embedding generation
+# ---------------------------------------------------------------------------
+
+
+async def _generate_embeddings(db, paper: Paper) -> None:
+    """Chunk extracted text, encode via embedding model, and store in paper_embedding."""
+    text_content = paper.extracted_text
+    if not text_content:
+        raise ValueError("No extracted text available for embedding generation")
+
+    chunks = chunk_text(text_content)
+    if not chunks:
+        raise ValueError("Text chunking produced no chunks")
+
+    batch_size = embedding_settings.EMBEDDING_BATCH_SIZE
+    for batch_start in range(0, len(chunks), batch_size):
+        batch_texts = chunks[batch_start : batch_start + batch_size]
+        vectors = await encode_batch(batch_texts)
+
+        values = [
+            {
+                "paper_id": paper.id,
+                "chunk_index": batch_start + i,
+                "chunk_text": batch_texts[i],
+                "embedding": vectors[i],
+            }
+            for i in range(len(batch_texts))
+        ]
+        stmt = (
+            pg_insert(PaperEmbedding)
+            .values(values)
+            .on_conflict_do_nothing(index_elements=["paper_id", "chunk_index"])
+        )
+        await db.execute(stmt)
+        await db.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +272,25 @@ async def process_paper(paper_id: uuid.UUID):
                 await db.commit()
                 notify_paper_update(str(paper_id))
 
-            # Steps embedding, crossrefing stay pending (future phases)
+            # Step 5: Embedding
+            embedding = _get_step(paper, StepName.EMBEDDING)
+            if embedding.status != StepStatus.DONE:
+                current_step_name = StepName.EMBEDDING.value
+                _mark_processing(embedding)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+                await _log_event(
+                    db, paper_id, "embedding", "Generating embeddings..."
+                )
+
+                async with _embedding_semaphore:
+                    await _generate_embeddings(db, paper)
+
+                _mark_done(embedding)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+
+            # Step 6: crossrefing stays pending (Sprint 4)
 
             # Terminal
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)

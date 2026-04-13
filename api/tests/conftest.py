@@ -1,12 +1,29 @@
+import atexit
 import json
 import os
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Point all engines (including the one created in app.core.database) to the test DB
 os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://synapseai:synapseai_test@localhost:5434/synapseai_test"
 )
+
+# Mock embedding model loading before importing app (lifespan calls load_embedding_model).
+# Module-level patches are required because the lifespan runs when the ASGI
+# test client starts, before per-test fixtures are available.
+_load_patch = patch(
+    "app.processing.embedding_service.load_embedding_model",
+    new_callable=AsyncMock,
+)
+_unload_patch = patch(
+    "app.processing.embedding_service.unload_embedding_model",
+    new_callable=AsyncMock,
+)
+_load_patch.start()
+_unload_patch.start()
+atexit.register(_load_patch.stop)
+atexit.register(_unload_patch.stop)
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
@@ -21,7 +38,7 @@ from app.core.database import get_db  # noqa: E402
 from app.core.enums import SourceType, StepName  # noqa: E402
 from app.main import app  # noqa: E402
 from app.papers.models import Paper  # noqa: E402
-from app.processing.models import PaperStep  # noqa: E402
+from app.processing.models import PaperEmbedding, PaperStep  # noqa: E402
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -146,3 +163,42 @@ def mock_claude(monkeypatch):
 
     monkeypatch.setattr("asyncio.create_subprocess_exec", mock_subprocess)
     return mock_process
+
+
+@pytest.fixture
+def mock_embedding(monkeypatch):
+    """Mock the embedding service encode_batch to return fake 768-dim vectors."""
+    FAKE_DIM = 768
+
+    async def fake_encode_batch(texts):
+        return [[0.1] * FAKE_DIM for _ in texts]
+
+    async def fake_encode_text(text):
+        return [0.1] * FAKE_DIM
+
+    monkeypatch.setattr(
+        "app.processing.service.encode_batch", fake_encode_batch
+    )
+    monkeypatch.setattr(
+        "app.search.service.encode_text", fake_encode_text
+    )
+
+
+@pytest.fixture
+async def embedding_factory(db):
+    """Factory fixture to create test paper_embedding rows."""
+
+    async def _create(paper_id: uuid.UUID, chunks: list[str] | None = None):
+        if chunks is None:
+            chunks = ["Test chunk content for embedding."]
+        for i, chunk in enumerate(chunks):
+            emb = PaperEmbedding(
+                paper_id=paper_id,
+                chunk_index=i,
+                chunk_text=chunk,
+                embedding=[0.1 + i * 0.01] * 768,
+            )
+            db.add(emb)
+        await db.commit()
+
+    return _create

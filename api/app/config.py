@@ -29,7 +29,21 @@ class ProcessingConfig(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
+class EmbeddingConfig(BaseSettings):
+    EMBEDDING_MODEL_NAME: str = "nomic-ai/nomic-embed-text-v1.5"
+    EMBEDDING_DIMS: int = 768
+    EMBEDDING_CHUNK_SIZE: int = 2048
+    EMBEDDING_CHUNK_OVERLAP: int = 200
+    EMBEDDING_MAX_WORKERS: int = 2
+    EMBEDDING_MAX_CHUNKS_PER_PAPER: int = 200
+    EMBEDDING_MAX_TEXT_CHARS: int = 500_000
+    EMBEDDING_BATCH_SIZE: int = 32
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
 db_settings = DatabaseConfig()
 upload_settings = UploadConfig()
 processing_settings = ProcessingConfig()
+embedding_settings = EmbeddingConfig()
 settings = AppConfig()

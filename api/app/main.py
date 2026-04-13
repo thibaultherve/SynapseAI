@@ -17,6 +17,7 @@ from app.core.exceptions import AppError
 from app.core.schemas import HealthResponse
 from app.papers.router import router as papers_router
 from app.processing.router import router as processing_router
+from app.search.router import router as search_router
 from app.tags.router import router as tags_router
 
 logger = logging.getLogger(__name__)
@@ -26,10 +27,17 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
+
+    from app.processing.embedding_service import load_embedding_model, unload_embedding_model
+
+    await load_embedding_model()
+
     yield
+
     from app.processing.task_registry import drain_tasks
 
     await drain_tasks()
+    await unload_embedding_model()
 
 
 app = FastAPI(
@@ -94,6 +102,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(papers_router)
 app.include_router(processing_router)
 app.include_router(tags_router)
+app.include_router(search_router)
 
 
 @app.get(
