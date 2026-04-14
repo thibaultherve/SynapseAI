@@ -39,7 +39,8 @@ class ChatMessage(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[int] = mapped_column(
-        ForeignKey("chat_session.id", ondelete="CASCADE")
+        ForeignKey("chat_session.id", ondelete="CASCADE"),
+        index=True,
     )
     role: Mapped[str] = mapped_column(String(10))
     content: Mapped[str] = mapped_column(Text)

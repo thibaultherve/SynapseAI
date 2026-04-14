@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from collections.abc import AsyncGenerator
 
 from pydantic import Field
 
@@ -227,6 +228,101 @@ async def generate_tags(
         )
 
     return sanitize_tag_output(raw_tags, existing_tag_ids)
+
+
+async def stream_claude(
+    prompt: str,
+    timeout_per_chunk: float = 30.0,
+) -> AsyncGenerator[dict, None]:
+    """Stream Claude CLI output as parsed chunks.
+
+    Uses --output-format stream-json --max-turns 1. Yields dicts:
+      - {"type": "content", "text": str}   per text delta
+      - {"type": "error", "message": str}  on timeout/failure
+      - {"type": "done", "full_text": str} at the end on success
+
+    The subprocess is killed if the per-chunk readline times out, if the
+    generator is closed (client disconnect), or on unexpected errors.
+    """
+    process = await asyncio.create_subprocess_exec(
+        "claude",
+        "-p",
+        "-",
+        "--output-format",
+        "stream-json",
+        "--max-turns",
+        "1",
+        "--verbose",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    full_response: list[str] = []
+    try:
+        if process.stdin is not None:
+            process.stdin.write(prompt.encode())
+            await process.stdin.drain()
+            process.stdin.close()
+
+        assert process.stdout is not None
+        while True:
+            try:
+                line = await asyncio.wait_for(
+                    process.stdout.readline(), timeout=timeout_per_chunk
+                )
+            except TimeoutError:
+                process.kill()
+                yield {
+                    "type": "error",
+                    "message": (
+                        f"Response generation timed out after "
+                        f"{timeout_per_chunk}s per chunk"
+                    ),
+                }
+                return
+
+            if not line:
+                break
+
+            try:
+                event = json.loads(line.decode())
+            except json.JSONDecodeError:
+                continue
+
+            # Extract text deltas from Claude's streaming envelope.
+            # stream-json format wraps assistant messages in event envelopes.
+            event_type = event.get("type")
+            if event_type == "content_block_delta":
+                delta = event.get("delta", {})
+                text = delta.get("text") if isinstance(delta, dict) else None
+                if text:
+                    full_response.append(text)
+                    yield {"type": "content", "text": text}
+            elif event_type == "assistant":
+                message = event.get("message", {}) or {}
+                for block in message.get("content", []) or []:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        text = block.get("text", "")
+                        if text:
+                            full_response.append(text)
+                            yield {"type": "content", "text": text}
+
+        returncode = await process.wait()
+        if returncode != 0:
+            assert process.stderr is not None
+            stderr = await process.stderr.read()
+            yield {
+                "type": "error",
+                "message": f"Claude CLI failed: {stderr.decode()[:200]}",
+            }
+            return
+
+        yield {"type": "done", "full_text": "".join(full_response)}
+    finally:
+        if process.returncode is None:
+            process.kill()
+            await process.wait()
 
 
 async def generate_summaries(extracted_text: str) -> SummaryOutput:

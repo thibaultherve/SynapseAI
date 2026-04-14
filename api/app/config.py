@@ -42,8 +42,23 @@ class EmbeddingConfig(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
+class ChatConfig(BaseSettings):
+    CHAT_CLAUDE_TIMEOUT_PER_CHUNK: float = 30.0
+    CHAT_MAX_CONTEXT_CHUNKS: int = 10
+    CHAT_MAX_CONTEXT_TOKENS: int = 8000
+    CHAT_MAX_MESSAGES_PER_SESSION: int = 100
+    CHAT_MAX_HISTORY_MESSAGES: int = 20
+    CHAT_MAX_SSE_PER_PAPER: int = 1
+    CHAT_MAX_SSE_TOTAL: int = 10
+    CHAT_RATE_LIMIT: str = "10/minute"
+    CHAT_MAX_MESSAGE_LENGTH: int = 5000
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
 db_settings = DatabaseConfig()
 upload_settings = UploadConfig()
 processing_settings = ProcessingConfig()
 embedding_settings = EmbeddingConfig()
+chat_settings = ChatConfig()
 settings = AppConfig()

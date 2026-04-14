@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chat.router import router as chat_router
 from app.config import settings
 from app.core.database import engine, get_db
 from app.core.exceptions import AppError
@@ -103,6 +104,7 @@ app.include_router(papers_router)
 app.include_router(processing_router)
 app.include_router(tags_router)
 app.include_router(search_router)
+app.include_router(chat_router)
 
 
 @app.get(
