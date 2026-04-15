@@ -16,6 +16,7 @@ from app.config import settings
 from app.core.database import engine, get_db
 from app.core.exceptions import AppError
 from app.core.schemas import HealthResponse
+from app.graph.router import router as graph_router
 from app.papers.router import router as papers_router
 from app.processing.router import router as processing_router
 from app.search.router import router as search_router
@@ -105,6 +106,7 @@ app.include_router(processing_router)
 app.include_router(tags_router)
 app.include_router(search_router)
 app.include_router(chat_router)
+app.include_router(graph_router)
 
 
 @app.get(

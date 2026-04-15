@@ -52,6 +52,14 @@ class CrossrefConfig(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
+class GraphConfig(BaseSettings):
+    GRAPH_MAX_NODES: int = 500
+    GRAPH_MAX_EDGES: int = 2000
+    GRAPH_EGO_MAX_DEPTH: int = 3
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
 class ChatConfig(BaseSettings):
     CHAT_CLAUDE_TIMEOUT_PER_CHUNK: float = 30.0
     CHAT_MAX_CONTEXT_CHUNKS: int = 10
@@ -71,5 +79,6 @@ upload_settings = UploadConfig()
 processing_settings = ProcessingConfig()
 embedding_settings = EmbeddingConfig()
 crossref_settings = CrossrefConfig()
+graph_settings = GraphConfig()
 chat_settings = ChatConfig()
 settings = AppConfig()
