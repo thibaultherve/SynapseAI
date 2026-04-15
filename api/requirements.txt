@@ -13,3 +13,6 @@ pdfplumber>=0.11
 trafilatura>=1.12
 aiofiles>=24.1
 slowapi>=0.1.9
+sentence-transformers>=3.0
+torch>=2.0
+einops>=0.8

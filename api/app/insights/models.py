@@ -39,6 +39,7 @@ class Insight(Base):
     evidence: Mapped[str | None] = mapped_column(Text)
     confidence: Mapped[str] = mapped_column(String(10))
     rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    title_normalized: Mapped[str | None] = mapped_column(String(255), nullable=True)
     detected_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

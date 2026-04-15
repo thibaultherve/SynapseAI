@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import upload_settings
 from app.core.database import get_db
+from app.core.enums import DerivedPaperStatus, ReferenceStrength, RelationType
 from app.core.exceptions import NotFoundError
 from app.core.schemas import ErrorResponse
 from app.papers import service
@@ -13,6 +15,7 @@ from app.papers.constants import ErrorCode
 from app.papers.dependencies import get_paper_or_404, validate_upload
 from app.papers.models import Paper
 from app.papers.schemas import (
+    CrossrefResponse,
     PaperCreate,
     PaperResponse,
     PaperSummaryResponse,
@@ -71,14 +74,29 @@ async def create_paper(
 @router.get(
     "",
     response_model=list[PaperSummaryResponse],
-    description="List all papers ordered by creation date (descending).",
+    status_code=200,
+    description="List papers with optional filters: tags, state, date range, full-text search.",
 )
 async def list_papers(
     skip: int = Query(0, ge=0, description="Number of papers to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max papers to return"),
+    tags: list[int] | None = Query(None, description="Filter by tag IDs (OR logic)"),
+    state: DerivedPaperStatus | None = Query(None, description="Filter by derived state"),
+    date_from: date | None = Query(None, description="Min publication date (inclusive)"),
+    date_to: date | None = Query(None, description="Max publication date (inclusive)"),
+    q: str | None = Query(None, min_length=1, max_length=200, description="Full-text search query"),
     db: AsyncSession = Depends(get_db),
 ):
-    return await service.list_papers(db, skip=skip, limit=limit)
+    return await service.list_papers(
+        db,
+        skip=skip,
+        limit=limit,
+        tags=tags,
+        state=state,
+        date_from=date_from,
+        date_to=date_to,
+        q=q,
+    )
 
 
 @router.get(
@@ -89,6 +107,37 @@ async def list_papers(
 )
 async def get_paper(paper: Paper = Depends(get_paper_or_404)):
     return paper
+
+
+@router.get(
+    "/{paper_id}/crossrefs",
+    response_model=list[CrossrefResponse],
+    description="List detected cross-references for this paper (hydrated with the related paper).",
+    responses={
+        404: {"model": ErrorResponse, "description": "Paper not found"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit("30/minute")
+async def get_paper_crossrefs(
+    request: Request,
+    paper: Paper = Depends(get_paper_or_404),
+    db: AsyncSession = Depends(get_db),
+    relation_type: RelationType | None = Query(
+        None, description="Filter by relation type"
+    ),
+    min_strength: ReferenceStrength | None = Query(
+        None, description="Minimum strength: weak | moderate | strong"
+    ),
+    limit: int = Query(20, ge=1, le=100),
+):
+    return await service.get_paper_crossrefs(
+        db,
+        paper.id,
+        relation_type=relation_type.value if relation_type else None,
+        min_strength=min_strength.value if min_strength else None,
+        limit=limit,
+    )
 
 
 @router.get(

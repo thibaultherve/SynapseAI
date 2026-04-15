@@ -53,7 +53,7 @@ class PaperEmbedding(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer)
     chunk_text: Mapped[str | None] = mapped_column(Text)
-    embedding: Mapped[Any] = mapped_column(Vector(384))
+    embedding: Mapped[Any] = mapped_column(Vector(768))
 
 
 class CrossReference(Base):

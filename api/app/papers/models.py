@@ -71,10 +71,13 @@ class Paper(Base):
     steps: Mapped[list["PaperStep"]] = relationship(
         back_populates="paper",
         lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     tags: Mapped[list["Tag"]] = relationship(
         secondary="paper_tag",
         lazy="selectin",
+        passive_deletes=True,
     )
 
 

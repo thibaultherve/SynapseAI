@@ -11,3 +11,8 @@ __pycache__/
 venv/
 .env
 uploads/
+.gitnexus
+excalidraw.log
+
+*.pdf
+design/*.png

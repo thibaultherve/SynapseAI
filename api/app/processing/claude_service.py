@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from collections.abc import AsyncGenerator
 
 from pydantic import Field
 
@@ -11,6 +12,17 @@ from app.processing.exceptions import ClaudeError
 
 TAG_NAME_REGEX = re.compile(r"^[a-zA-Z0-9\s\-/().,'+]+$")
 VALID_TAG_CATEGORIES = frozenset({"sub_domain", "technique", "pathology", "topic"})
+
+# Unified Claude CLI concurrency guard for plan-Max (1 call at a time across
+# summarize/tagging/crossref/insight).
+_claude_semaphore = asyncio.Semaphore(1)
+
+# Injection-pattern strippers for summaries reinjected into downstream prompts.
+_MARKDOWN_HEADER_RE = re.compile(r"^#+\s.*$", re.MULTILINE)
+_INJECTION_LINE_RE = re.compile(
+    r"^\s*(ignore|system|assistant|user|instruction)s?\s*:.*$",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 
 class SummaryOutput(AppBaseModel):
@@ -31,16 +43,19 @@ async def call_claude(prompt: str, timeout: float | None = None) -> str:
     process = await asyncio.create_subprocess_exec(
         "claude",
         "-p",
-        prompt,
+        "-",
         "--output-format",
         "json",
         "--max-turns",
         "1",
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     try:
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(input=prompt.encode()), timeout=timeout
+        )
     except TimeoutError as exc:
         process.kill()
         await process.wait()
@@ -49,16 +64,38 @@ async def call_claude(prompt: str, timeout: float | None = None) -> str:
         ) from exc
 
     if process.returncode != 0:
-        err_msg = stderr.decode()[:500]
+        err_msg = (stderr.decode() + stdout.decode())[:500]
         raise ClaudeError(ErrorCode.CLAUDE_ERROR, f"Claude CLI failed: {err_msg}")
 
     try:
         data = json.loads(stdout.decode())
+        # --output-format json returns a list of messages.
+        # Extract the text from the last assistant message.
+        if isinstance(data, list):
+            for msg in reversed(data):
+                if msg.get("type") == "assistant" and "message" in msg:
+                    # message contains content blocks
+                    content = msg["message"].get("content", [])
+                    texts = [b["text"] for b in content if b.get("type") == "text"]
+                    if texts:
+                        return "\n".join(texts)
+            # Fallback: return raw stdout
+            return stdout.decode()
         return data.get("result", stdout.decode())
     except json.JSONDecodeError as e:
         raise ClaudeError(
             ErrorCode.CLAUDE_PARSE_ERROR, f"Failed to parse Claude response: {e}"
         ) from e
+
+
+async def call_claude_locked(prompt: str, timeout: float | None = None) -> str:
+    """Serialize Claude CLI calls across the app via `_claude_semaphore`.
+
+    Wraps `call_claude` to enforce the plan-Max 1-concurrent-call constraint
+    across every domain that talks to Claude (summaries, tags, crossref, insights).
+    """
+    async with _claude_semaphore:
+        return await call_claude(prompt, timeout=timeout)
 
 
 SUMMARIZE_PROMPT = """You are a research paper analysis assistant.
@@ -185,7 +222,7 @@ async def generate_tags(
         short_summary=short_summary,
         existing_tags_json=existing_tags_json,
     )
-    raw = await call_claude(prompt)
+    raw = await call_claude_locked(prompt)
 
     try:
         clean = raw.strip()
@@ -214,9 +251,104 @@ async def generate_tags(
     return sanitize_tag_output(raw_tags, existing_tag_ids)
 
 
+async def stream_claude(
+    prompt: str,
+    timeout_per_chunk: float = 30.0,
+) -> AsyncGenerator[dict, None]:
+    """Stream Claude CLI output as parsed chunks.
+
+    Uses --output-format stream-json --max-turns 1. Yields dicts:
+      - {"type": "content", "text": str}   per text delta
+      - {"type": "error", "message": str}  on timeout/failure
+      - {"type": "done", "full_text": str} at the end on success
+
+    The subprocess is killed if the per-chunk readline times out, if the
+    generator is closed (client disconnect), or on unexpected errors.
+    """
+    process = await asyncio.create_subprocess_exec(
+        "claude",
+        "-p",
+        "-",
+        "--output-format",
+        "stream-json",
+        "--max-turns",
+        "1",
+        "--verbose",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    full_response: list[str] = []
+    try:
+        if process.stdin is not None:
+            process.stdin.write(prompt.encode())
+            await process.stdin.drain()
+            process.stdin.close()
+
+        assert process.stdout is not None
+        while True:
+            try:
+                line = await asyncio.wait_for(
+                    process.stdout.readline(), timeout=timeout_per_chunk
+                )
+            except TimeoutError:
+                process.kill()
+                yield {
+                    "type": "error",
+                    "message": (
+                        f"Response generation timed out after "
+                        f"{timeout_per_chunk}s per chunk"
+                    ),
+                }
+                return
+
+            if not line:
+                break
+
+            try:
+                event = json.loads(line.decode())
+            except json.JSONDecodeError:
+                continue
+
+            # Extract text deltas from Claude's streaming envelope.
+            # stream-json format wraps assistant messages in event envelopes.
+            event_type = event.get("type")
+            if event_type == "content_block_delta":
+                delta = event.get("delta", {})
+                text = delta.get("text") if isinstance(delta, dict) else None
+                if text:
+                    full_response.append(text)
+                    yield {"type": "content", "text": text}
+            elif event_type == "assistant":
+                message = event.get("message", {}) or {}
+                for block in message.get("content", []) or []:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        text = block.get("text", "")
+                        if text:
+                            full_response.append(text)
+                            yield {"type": "content", "text": text}
+
+        returncode = await process.wait()
+        if returncode != 0:
+            assert process.stderr is not None
+            stderr = await process.stderr.read()
+            yield {
+                "type": "error",
+                "message": f"Claude CLI failed: {stderr.decode()[:200]}",
+            }
+            return
+
+        yield {"type": "done", "full_text": "".join(full_response)}
+    finally:
+        if process.returncode is None:
+            process.kill()
+            await process.wait()
+
+
 async def generate_summaries(extracted_text: str) -> SummaryOutput:
     prompt = SUMMARIZE_PROMPT.format(extracted_text=extracted_text[:100_000])
-    raw = await call_claude(prompt)
+    raw = await call_claude_locked(prompt)
 
     try:
         # Claude may return the JSON wrapped in markdown code fences
@@ -228,3 +360,23 @@ async def generate_summaries(extracted_text: str) -> SummaryOutput:
         raise ClaudeError(
             ErrorCode.CLAUDE_PARSE_ERROR, f"Claude output validation failed: {e}"
         ) from e
+
+
+# ---------------------------------------------------------------------------
+# Shared utility — reused by crossref and insight prompt builders
+# ---------------------------------------------------------------------------
+
+
+def sanitize_summary_for_reuse(text: str | None, max_chars: int = 2000) -> str:
+    """Strip markdown/injection patterns from model-generated text before
+    reinjecting it into a downstream prompt. Caps length at `max_chars`.
+    """
+    if not text:
+        return ""
+    cleaned = _MARKDOWN_HEADER_RE.sub("", text)
+    cleaned = _INJECTION_LINE_RE.sub("", cleaned)
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    if len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars]
+    return cleaned

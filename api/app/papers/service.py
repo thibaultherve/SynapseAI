@@ -1,19 +1,22 @@
 import uuid
+from datetime import date
 from pathlib import Path
 
 import aiofiles
-from sqlalchemy import select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import upload_settings
-from app.core.enums import SourceType, StepName
+from app.core.enums import DerivedPaperStatus, SourceType, StepName
 from app.core.exceptions import ConflictError
 from app.papers.constants import ErrorCode
-from app.papers.models import Paper
+from app.papers.models import Paper, PaperTag
 from app.papers.schemas import PaperUpdate
-from app.processing.models import PaperStep
+from app.processing.models import CrossReference, PaperStep
 from app.utils.doi_resolver import resolve_doi
 from app.utils.url_validator import validate_url
+
+_STRENGTH_ORDER = {"weak": 0, "moderate": 1, "strong": 2}
 
 
 async def _create_initial_steps(db: AsyncSession, paper_id: uuid.UUID):
@@ -41,7 +44,7 @@ async def create_paper_from_pdf(
 
     await _create_initial_steps(db, paper_id)
     await db.flush()
-    await db.refresh(paper, ["steps"])
+    await db.refresh(paper, ["steps", "tags"])
 
     # Import here to avoid circular imports
     from app.processing.service import process_paper
@@ -65,7 +68,7 @@ async def create_paper_from_url(url: str, db: AsyncSession) -> Paper:
 
     await _create_initial_steps(db, paper_id)
     await db.flush()
-    await db.refresh(paper, ["steps"])
+    await db.refresh(paper, ["steps", "tags"])
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing
@@ -94,7 +97,7 @@ async def create_paper_from_doi(doi: str, db: AsyncSession) -> Paper:
 
     await _create_initial_steps(db, paper_id)
     await db.flush()
-    await db.refresh(paper, ["steps"])
+    await db.refresh(paper, ["steps", "tags"])
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing
@@ -103,11 +106,91 @@ async def create_paper_from_doi(doi: str, db: AsyncSession) -> Paper:
     return paper
 
 
-async def list_papers(db: AsyncSession, *, skip: int = 0, limit: int = 50) -> list[Paper]:
-    result = await db.execute(
-        select(Paper).order_by(Paper.created_at.desc()).offset(skip).limit(limit)
+def _step_exists(status_val: str, step_name: str | None = None):
+    """Build an EXISTS subquery on paper_step for a given status (and optional step name)."""
+    clause = and_(PaperStep.paper_id == Paper.id, PaperStep.status == status_val)
+    if step_name:
+        clause = and_(clause, PaperStep.step == step_name)
+    return exists(select(PaperStep.paper_id).where(clause))
+
+
+def _apply_state_filter(query, state: DerivedPaperStatus):
+    """Translate DerivedPaperStatus into SQL WHERE clauses on paper_step.
+
+    Mirrors the priority logic in compute_paper_status():
+      error > processing > enriched > readable > pending
+    """
+    has_error = _step_exists("error")
+    has_processing = _step_exists("processing")
+
+    if state == DerivedPaperStatus.ERROR:
+        return query.where(has_error)
+
+    if state == DerivedPaperStatus.PROCESSING:
+        return query.where(~has_error, has_processing)
+
+    # "enriched" = all non-crossrefing steps are done (and no error/processing)
+    has_non_done_non_crossref = exists(
+        select(PaperStep.paper_id).where(
+            PaperStep.paper_id == Paper.id,
+            PaperStep.step != StepName.CROSSREFING.value,
+            PaperStep.status != "done",
+        )
     )
-    return list(result.scalars().all())
+    if state == DerivedPaperStatus.ENRICHED:
+        return query.where(~has_error, ~has_processing, ~has_non_done_non_crossref)
+
+    if state == DerivedPaperStatus.READABLE:
+        has_summarized = _step_exists("done", StepName.SUMMARIZING.value)
+        return query.where(
+            ~has_error, ~has_processing, has_non_done_non_crossref, has_summarized
+        )
+
+    # PENDING: no error, no processing, not enriched, not readable
+    if state == DerivedPaperStatus.PENDING:
+        has_summarized = _step_exists("done", StepName.SUMMARIZING.value)
+        return query.where(
+            ~has_error, ~has_processing, has_non_done_non_crossref, ~has_summarized
+        )
+
+    return query
+
+
+async def list_papers(
+    db: AsyncSession,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    tags: list[int] | None = None,
+    state: DerivedPaperStatus | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    q: str | None = None,
+) -> list[Paper]:
+    query = select(Paper)
+
+    if tags:
+        query = query.join(PaperTag, Paper.id == PaperTag.paper_id).where(
+            PaperTag.tag_id.in_(tags)
+        ).distinct()
+
+    if date_from:
+        query = query.where(Paper.publication_date >= date_from)
+    if date_to:
+        query = query.where(Paper.publication_date <= date_to)
+
+    if q:
+        query = query.where(
+            Paper.search_vector.op("@@")(func.websearch_to_tsquery("english", q))
+        )
+
+    if state:
+        query = _apply_state_filter(query, state)
+
+    result = await db.execute(
+        query.order_by(Paper.created_at.desc()).offset(skip).limit(limit)
+    )
+    return list(result.scalars().unique().all())
 
 
 async def delete_paper(paper: Paper, db: AsyncSession) -> None:
@@ -119,3 +202,72 @@ async def update_paper(paper: Paper, update: PaperUpdate, db: AsyncSession) -> P
     for field, value in update_data.items():
         setattr(paper, field, value)
     return paper
+
+
+async def get_paper_crossrefs(
+    db: AsyncSession,
+    paper_id: uuid.UUID,
+    *,
+    relation_type: str | None = None,
+    min_strength: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    """Return cross-references touching `paper_id`, hydrated with the OTHER paper.
+
+    Results are ordered by strength (strong > moderate > weak) then detected_at desc.
+    """
+    other_id = case(
+        (CrossReference.paper_a == paper_id, CrossReference.paper_b),
+        else_=CrossReference.paper_a,
+    ).label("other_id")
+    strength_rank = case(
+        (CrossReference.strength == "strong", 2),
+        (CrossReference.strength == "moderate", 1),
+        (CrossReference.strength == "weak", 0),
+        else_=0,
+    )
+
+    query = select(
+        CrossReference.relation_type,
+        CrossReference.strength,
+        CrossReference.description,
+        CrossReference.detected_at,
+        other_id,
+    ).where(
+        or_(CrossReference.paper_a == paper_id, CrossReference.paper_b == paper_id)
+    )
+
+    if relation_type:
+        query = query.where(CrossReference.relation_type == relation_type)
+
+    if min_strength:
+        threshold = _STRENGTH_ORDER.get(min_strength, 0)
+        allowed = [k for k, v in _STRENGTH_ORDER.items() if v >= threshold]
+        query = query.where(CrossReference.strength.in_(allowed))
+
+    query = query.order_by(
+        strength_rank.desc(),
+        CrossReference.detected_at.desc(),
+    ).limit(limit)
+
+    rows = (await db.execute(query)).all()
+    if not rows:
+        return []
+
+    other_ids = [row.other_id for row in rows]
+    papers_q = select(Paper).where(Paper.id.in_(other_ids))
+    papers = {p.id: p for p in (await db.execute(papers_q)).scalars().unique().all()}
+
+    result: list[dict] = []
+    for row in rows:
+        paper = papers.get(row.other_id)
+        if paper is None:
+            continue
+        result.append({
+            "paper": paper,
+            "relation_type": row.relation_type,
+            "strength": row.strength,
+            "description": row.description,
+            "detected_at": row.detected_at,
+        })
+    return result
