@@ -4,7 +4,14 @@ from datetime import date, datetime
 
 from pydantic import Field, HttpUrl, computed_field, field_validator, model_validator
 
-from app.core.enums import DerivedPaperStatus, SourceType, StepName, StepStatus
+from app.core.enums import (
+    DerivedPaperStatus,
+    ReferenceStrength,
+    RelationType,
+    SourceType,
+    StepName,
+    StepStatus,
+)
 from app.core.schemas import AppBaseModel
 from app.papers.utils import compute_paper_status
 
@@ -111,3 +118,11 @@ class PaperSummaryResponse(AppBaseModel):
     @property
     def status(self) -> DerivedPaperStatus:
         return compute_paper_status(self.steps)
+
+
+class CrossrefResponse(AppBaseModel):
+    paper: PaperSummaryResponse
+    relation_type: RelationType
+    strength: ReferenceStrength
+    description: str | None = None
+    detected_at: datetime

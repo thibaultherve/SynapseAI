@@ -38,7 +38,11 @@ from app.core.database import get_db  # noqa: E402
 from app.core.enums import SourceType, StepName  # noqa: E402
 from app.main import app  # noqa: E402
 from app.papers.models import Paper  # noqa: E402
-from app.processing.models import PaperEmbedding, PaperStep  # noqa: E402
+from app.processing.models import (  # noqa: E402
+    CrossReference,
+    PaperEmbedding,
+    PaperStep,
+)
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -182,6 +186,35 @@ def mock_embedding(monkeypatch):
     monkeypatch.setattr(
         "app.search.service.encode_text", fake_encode_text
     )
+
+
+@pytest.fixture
+async def crossref_factory(db):
+    """Factory fixture to create cross_reference rows with canonical ordering."""
+
+    async def _create(
+        paper_a_id: uuid.UUID,
+        paper_b_id: uuid.UUID,
+        *,
+        relation_type: str = "thematic",
+        strength: str = "moderate",
+        description: str | None = "Test crossref",
+    ) -> CrossReference:
+        # Enforce paper_a < paper_b CHECK constraint
+        a, b = sorted([paper_a_id, paper_b_id], key=str)
+        row = CrossReference(
+            paper_a=a,
+            paper_b=b,
+            relation_type=relation_type,
+            strength=strength,
+            description=description,
+        )
+        db.add(row)
+        await db.commit()
+        await db.refresh(row)
+        return row
+
+    return _create
 
 
 @pytest.fixture

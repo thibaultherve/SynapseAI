@@ -13,6 +13,7 @@ from app.core.database import async_session
 from app.core.enums import SourceType, StepName, StepStatus
 from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries, generate_tags
+from app.processing.crossref_service import run_crossref_step
 from app.processing.embedding_service import encode_batch
 from app.processing.events import notify_paper_update
 from app.processing.models import PaperEmbedding, PaperStep, ProcessingEvent
@@ -85,7 +86,7 @@ def can_retry(paper: Paper, step_name: str) -> tuple[bool, str]:
         StepName.SUMMARIZING.value: lambda p: bool(p.extracted_text),
         StepName.TAGGING.value: lambda p: bool(p.short_summary),
         StepName.EMBEDDING.value: lambda p: bool(p.extracted_text),
-        StepName.CROSSREFING.value: lambda p: False,  # Not available in Sprint 3
+        StepName.CROSSREFING.value: lambda p: bool(p.extracted_text),
     }
 
     check = preconditions.get(step_name)
@@ -290,7 +291,22 @@ async def process_paper(paper_id: uuid.UUID):
                 await db.commit()
                 notify_paper_update(str(paper_id))
 
-            # Step 6: crossrefing stays pending (Sprint 4)
+            # Step 6: Cross-references
+            crossrefing = _get_step(paper, StepName.CROSSREFING)
+            if crossrefing.status != StepStatus.DONE:
+                current_step_name = StepName.CROSSREFING.value
+                _mark_processing(crossrefing)
+                await db.commit()
+                notify_paper_update(str(paper_id))
+                await _log_event(
+                    db, paper_id, "crossrefing", "Finding related papers..."
+                )
+
+                await run_crossref_step(db, paper)
+
+                _mark_done(crossrefing)
+                await db.commit()
+                notify_paper_update(str(paper_id))
 
             # Terminal
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)

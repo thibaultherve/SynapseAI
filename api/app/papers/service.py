@@ -3,7 +3,7 @@ from datetime import date
 from pathlib import Path
 
 import aiofiles
-from sqlalchemy import and_, exists, func, select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import upload_settings
@@ -12,9 +12,11 @@ from app.core.exceptions import ConflictError
 from app.papers.constants import ErrorCode
 from app.papers.models import Paper, PaperTag
 from app.papers.schemas import PaperUpdate
-from app.processing.models import PaperStep
+from app.processing.models import CrossReference, PaperStep
 from app.utils.doi_resolver import resolve_doi
 from app.utils.url_validator import validate_url
+
+_STRENGTH_ORDER = {"weak": 0, "moderate": 1, "strong": 2}
 
 
 async def _create_initial_steps(db: AsyncSession, paper_id: uuid.UUID):
@@ -200,3 +202,72 @@ async def update_paper(paper: Paper, update: PaperUpdate, db: AsyncSession) -> P
     for field, value in update_data.items():
         setattr(paper, field, value)
     return paper
+
+
+async def get_paper_crossrefs(
+    db: AsyncSession,
+    paper_id: uuid.UUID,
+    *,
+    relation_type: str | None = None,
+    min_strength: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    """Return cross-references touching `paper_id`, hydrated with the OTHER paper.
+
+    Results are ordered by strength (strong > moderate > weak) then detected_at desc.
+    """
+    other_id = case(
+        (CrossReference.paper_a == paper_id, CrossReference.paper_b),
+        else_=CrossReference.paper_a,
+    ).label("other_id")
+    strength_rank = case(
+        (CrossReference.strength == "strong", 2),
+        (CrossReference.strength == "moderate", 1),
+        (CrossReference.strength == "weak", 0),
+        else_=0,
+    )
+
+    query = select(
+        CrossReference.relation_type,
+        CrossReference.strength,
+        CrossReference.description,
+        CrossReference.detected_at,
+        other_id,
+    ).where(
+        or_(CrossReference.paper_a == paper_id, CrossReference.paper_b == paper_id)
+    )
+
+    if relation_type:
+        query = query.where(CrossReference.relation_type == relation_type)
+
+    if min_strength:
+        threshold = _STRENGTH_ORDER.get(min_strength, 0)
+        allowed = [k for k, v in _STRENGTH_ORDER.items() if v >= threshold]
+        query = query.where(CrossReference.strength.in_(allowed))
+
+    query = query.order_by(
+        strength_rank.desc(),
+        CrossReference.detected_at.desc(),
+    ).limit(limit)
+
+    rows = (await db.execute(query)).all()
+    if not rows:
+        return []
+
+    other_ids = [row.other_id for row in rows]
+    papers_q = select(Paper).where(Paper.id.in_(other_ids))
+    papers = {p.id: p for p in (await db.execute(papers_q)).scalars().unique().all()}
+
+    result: list[dict] = []
+    for row in rows:
+        paper = papers.get(row.other_id)
+        if paper is None:
+            continue
+        result.append({
+            "paper": paper,
+            "relation_type": row.relation_type,
+            "strength": row.strength,
+            "description": row.description,
+            "detected_at": row.detected_at,
+        })
+    return result

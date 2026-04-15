@@ -42,6 +42,16 @@ class EmbeddingConfig(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
+class CrossrefConfig(BaseSettings):
+    CROSSREF_TOP_K: int = 20
+    CROSSREF_COSINE_GATE: float = 0.7
+    CROSSREF_MAX_PAIRS_PER_PAPER: int = 10
+    CROSSREF_CLAUDE_TIMEOUT: int = 60
+    CROSSREF_MAX_DESCRIPTION_LENGTH: int = 500
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
 class ChatConfig(BaseSettings):
     CHAT_CLAUDE_TIMEOUT_PER_CHUNK: float = 30.0
     CHAT_MAX_CONTEXT_CHUNKS: int = 10
@@ -60,5 +70,6 @@ db_settings = DatabaseConfig()
 upload_settings = UploadConfig()
 processing_settings = ProcessingConfig()
 embedding_settings = EmbeddingConfig()
+crossref_settings = CrossrefConfig()
 chat_settings = ChatConfig()
 settings = AppConfig()
