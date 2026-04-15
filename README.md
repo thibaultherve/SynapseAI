@@ -15,6 +15,12 @@ All AI features run through **Claude CLI** (subprocess), leveraging the fixed-pr
 
 ---
 
+## 📸 Preview
+
+![SynapseAI preview](design/preview.png)
+
+---
+
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
@@ -24,12 +30,6 @@ All AI features run through **Claude CLI** (subprocess), leveraging the fixed-pr
 | **Database** | <img src="https://img.shields.io/badge/PostgreSQL_16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" height="20"/> <img src="https://img.shields.io/badge/pgvector-4169E1?logo=postgresql&logoColor=white" alt="pgvector" height="20"/> |
 | **Infrastructure** | <img src="https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white" alt="Docker" height="20"/> <img src="https://img.shields.io/badge/Ruff-D7FF64?logo=ruff&logoColor=black" alt="Ruff" height="20"/> <img src="https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white" alt="pytest" height="20"/> |
 | **Frontend** *(planned)* | <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React" height="20"/> <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" height="20"/> |
-
----
-
-## 📸 Preview
-
-> Screenshots coming soon — frontend is currently being built.
 
 ---
 
