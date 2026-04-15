@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.config import embedding_settings, processing_settings
 from app.core.database import async_session
 from app.core.enums import SourceType, StepName, StepStatus
+from app.insights.debouncer import insight_debouncer
 from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries, generate_tags
 from app.processing.crossref_service import run_crossref_step
@@ -307,6 +308,9 @@ async def process_paper(paper_id: uuid.UUID):
                 _mark_done(crossrefing)
                 await db.commit()
                 notify_paper_update(str(paper_id))
+
+                # Debounce an insight-generation pass across the corpus.
+                insight_debouncer.schedule()
 
             # Terminal
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)

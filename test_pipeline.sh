@@ -60,6 +60,8 @@
 #   /api/papers/:id/chat       (SSE, bref)
 #   /api/papers/:id/chat/sessions
 #   /api/chat/sessions/:id/messages
+#   /api/insights              (GET list + filters, POST /refresh,
+#                               GET/:id, PATCH /:id/rating, DELETE /:id)
 #
 # -----------------------------------------------------------------------------
 # Usage :
@@ -68,6 +70,7 @@
 #   PDF=other.pdf ./test_pipeline.sh
 #   SKIP_CHAT=1 ./test_pipeline.sh          # skip chat SSE (coûteux)
 #   SKIP_CLEAN=1 ./test_pipeline.sh         # ne pas purger les papers existants
+#   SKIP_INSIGHTS=1 ./test_pipeline.sh      # skip la génération d'insights (Claude)
 # =============================================================================
 
 set -euo pipefail
@@ -76,6 +79,7 @@ API="${API:-http://localhost:8000}"
 PDF="${PDF:-bastien-paper.pdf}"
 SKIP_CHAT="${SKIP_CHAT:-0}"
 SKIP_CLEAN="${SKIP_CLEAN:-0}"
+SKIP_INSIGHTS="${SKIP_INSIGHTS:-0}"
 SSE_TIMEOUT="${SSE_TIMEOUT:-600}"   # secondes max pour attendre la fin du pipeline
 
 # ---- couleurs / helpers ----------------------------------------------------
@@ -433,9 +437,97 @@ for m in d:
 fi
 
 # ---------------------------------------------------------------------------
-section "11. Récap"
+section "11. Insights (corpus-level analytics)"
+# ---------------------------------------------------------------------------
+# Les insights sont générés à partir des cross-references récentes (fenêtre
+# INSIGHT_LOOKBACK_HOURS = 24h). Avec un seul paper uploadé dans ce test il
+# n'y a probablement aucune crossref, donc l'appel /refresh renverra
+# status=skipped — c'est attendu. Le but est juste de vérifier que les
+# endpoints répondent et que le contrat JSON tient la route.
+if [[ "$SKIP_INSIGHTS" == "1" ]]; then
+  warn "SKIP_INSIGHTS=1, on saute"
+else
+  step "POST /api/insights/refresh"
+  # Rate-limit: 1/10min. En cas de 429 on continue, c'est juste un échauffement.
+  refresh_tmp=$(mktemp)
+  refresh_code=$(curl -s -o "$refresh_tmp" -w "%{http_code}" \
+    -X POST "$API/api/insights/refresh")
+  refresh_body=$(cat "$refresh_tmp"); rm -f "$refresh_tmp"
+  echo "  ${DIM}POST /api/insights/refresh → $refresh_code${RST}"
+  case "$refresh_code" in
+    200)
+      echo "$refresh_body" | pyjson "
+print(f\"  status={d['status']}  new={d['insights_new']}  merged={d['insights_merged']}  skipped={d['skipped']}\")
+print(f\"  hash={d['hash'][:16]}…\")
+"
+      ;;
+    409)
+      warn "409 — une génération est déjà en cours (debouncer lock)"
+      ;;
+    429)
+      warn "429 — rate limit (1/10min) atteint, pas de refresh ce run"
+      ;;
+    *)
+      fail "Code inattendu : $refresh_code"
+      echo "$refresh_body" | head -c 200
+      ;;
+  esac
+
+  step "GET /api/insights?limit=10"
+  insights=$(req GET "/api/insights?limit=10")
+  insight_count=$(echo "$insights" | pyjson "print(len(d))")
+  echo "$insights" | pyjson "
+for i in d[:5]:
+    title = (i.get('title') or '')[:60]
+    papers = len(i.get('supporting_papers', []))
+    print(f\"  [{i['type']:13} {i['confidence']:6}] rating={i.get('rating')}  papers={papers}  {title}\")
+if not d:
+    print('  (aucun insight — attendu si pas de crossref récente)')
+"
+
+  step "GET /api/insights?type=trend&confidence=high&limit=5"
+  req GET "/api/insights?type=trend&confidence=high&limit=5" \
+    | pyjson "print(f'  {len(d)} insight(s) (type=trend, confidence=high)')"
+
+  # Si on a au moins un insight on exerce le GET/:id + PATCH rating + DELETE
+  if [[ "$insight_count" -gt 0 ]]; then
+    first_insight_id=$(echo "$insights" | pyjson "print(d[0]['id'])")
+
+    step "GET /api/insights/$first_insight_id"
+    req GET "/api/insights/$first_insight_id" | pyjson "
+print(f\"  id={d['id']}  type={d['type']}  confidence={d['confidence']}\")
+print(f\"  title   : {(d.get('title') or '')[:80]}\")
+print(f\"  content : {(d.get('content') or '')[:80]}\")
+print(f\"  supporting_papers: {len(d.get('supporting_papers', []))}\")
+"
+
+    step "PATCH /api/insights/$first_insight_id/rating (rating=1)"
+    req PATCH "/api/insights/$first_insight_id/rating" \
+      -H "Content-Type: application/json" \
+      -d '{"rating":1}' \
+      | pyjson "print(f\"  rating now = {d.get('rating')}\")"
+
+    step "PATCH /api/insights/$first_insight_id/rating (rating=null → clear)"
+    req PATCH "/api/insights/$first_insight_id/rating" \
+      -H "Content-Type: application/json" \
+      -d '{"rating":null}' \
+      | pyjson "print(f\"  rating now = {d.get('rating')}\")"
+
+    step "DELETE /api/insights/$first_insight_id"
+    del_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X DELETE "$API/api/insights/$first_insight_id")
+    echo "  ${DIM}DELETE → $del_code${RST}"
+    [[ "$del_code" == "204" ]] && ok "insight supprimé (204)" \
+      || warn "attendu 204, reçu $del_code"
+  else
+    warn "Aucun insight persisté — skip GET/:id, PATCH, DELETE"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+section "12. Récap"
 # ---------------------------------------------------------------------------
 ok "paper_id testé : $paper_id"
 ok "Tous les endpoints ciblés ont été sollicités."
 echo ""
-echo "${DIM}Astuce : ENV SKIP_CHAT=1 pour aller plus vite, SKIP_CLEAN=1 pour conserver les papers.${RST}"
+echo "${DIM}Astuce : ENV SKIP_CHAT=1 pour aller plus vite, SKIP_CLEAN=1 pour conserver les papers, SKIP_INSIGHTS=1 pour éviter Claude sur /refresh.${RST}"

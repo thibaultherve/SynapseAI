@@ -3,7 +3,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.processing.claude_service import call_claude, sanitize_tag_output
+from app.processing.claude_service import (
+    call_claude,
+    sanitize_tag_output,
+)
 from app.processing.exceptions import ClaudeError
 
 

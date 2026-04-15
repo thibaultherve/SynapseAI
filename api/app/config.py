@@ -60,6 +60,24 @@ class GraphConfig(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
+class InsightConfig(BaseSettings):
+    INSIGHT_DEBOUNCE_SECONDS: int = 30
+    INSIGHT_DEDUP_THRESHOLD: float = 0.8
+    INSIGHT_MAX_PER_GENERATION: int = 20
+    INSIGHT_CLAUDE_TIMEOUT: int = 180
+    INSIGHT_CONTEXT_TOP_RATED: int = 20
+    INSIGHT_LOOKBACK_HOURS: int = 24
+    INSIGHT_MAX_TITLE_LENGTH: int = 300
+    INSIGHT_MAX_CONTENT_LENGTH: int = 2000
+    INSIGHT_MAX_EVIDENCE_LENGTH: int = 2000
+    INSIGHT_CONTEXT_SUMMARY_CHARS: int = 1500
+    INSIGHT_MAX_CROSSREFS: int = 200
+    INSIGHT_GENERATION_TIMEOUT_MARGIN: int = 30
+    INSIGHT_REFRESH_RATE: str = "1/10minute"
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
 class ChatConfig(BaseSettings):
     CHAT_CLAUDE_TIMEOUT_PER_CHUNK: float = 30.0
     CHAT_MAX_CONTEXT_CHUNKS: int = 10
@@ -80,5 +98,6 @@ processing_settings = ProcessingConfig()
 embedding_settings = EmbeddingConfig()
 crossref_settings = CrossrefConfig()
 graph_settings = GraphConfig()
+insight_settings = InsightConfig()
 chat_settings = ChatConfig()
 settings = AppConfig()

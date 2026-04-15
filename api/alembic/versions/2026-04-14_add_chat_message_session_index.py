@@ -1,7 +1,7 @@
 """Add index on chat_message.session_id for session-scoped lookups
 
 Revision ID: 005
-Revises: 004a
+Revises: 004b
 Create Date: 2026-04-14
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "005"
-down_revision: str = "004a"
+down_revision: str = "004b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

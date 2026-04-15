@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -17,6 +18,7 @@ from app.core.database import engine, get_db
 from app.core.exceptions import AppError
 from app.core.schemas import HealthResponse
 from app.graph.router import router as graph_router
+from app.insights.router import router as insights_router
 from app.papers.router import router as papers_router
 from app.processing.router import router as processing_router
 from app.search.router import router as search_router
@@ -30,15 +32,18 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
 
+    from app.insights.debouncer import insight_debouncer
     from app.processing.embedding_service import load_embedding_model, unload_embedding_model
 
     await load_embedding_model()
+    insight_debouncer.start()
 
     yield
 
     from app.processing.task_registry import drain_tasks
 
     await drain_tasks()
+    await insight_debouncer.stop()
     await unload_embedding_model()
 
 
@@ -81,7 +86,8 @@ async def validation_error_handler(
         content={
             "error": {
                 "code": "VALIDATION_ERROR",
-                "message": str(exc.errors()),
+                "message": "Request validation failed",
+                "details": jsonable_encoder(exc.errors()),
             }
         },
     )
@@ -107,6 +113,7 @@ app.include_router(tags_router)
 app.include_router(search_router)
 app.include_router(chat_router)
 app.include_router(graph_router)
+app.include_router(insights_router)
 
 
 @app.get(

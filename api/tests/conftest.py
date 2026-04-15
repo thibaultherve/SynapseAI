@@ -64,6 +64,13 @@ async def _clean_tables():
                 "CASCADE"
             )
         )
+    # Reset in-memory rate-limit counters so per-test quotas don't leak.
+    from app.ratelimit import limiter
+    limiter.reset()
+    # Reset the insight debouncer singleton so its lock/hash/task don't
+    # leak across tests (and across different pytest-asyncio event loops).
+    from app.insights.debouncer import insight_debouncer
+    insight_debouncer.reset()
     yield
 
 
@@ -140,24 +147,33 @@ def tmp_upload_dir(tmp_path, monkeypatch):
 
 @pytest.fixture
 def mock_claude(monkeypatch):
-    """Patch asyncio.create_subprocess_exec to return a mock Claude CLI response."""
-    summary_json = json.dumps({
-        "result": json.dumps({
-            "title": "Test Paper Title",
-            "authors": ["Author One", "Author Two"],
-            "authors_short": "One et al.",
-            "publication_date": "2024-01-15",
-            "journal": "Nature",
-            "doi": None,
-            "short_summary": "This is a short summary of the test paper.",
-            "detailed_summary": "This is a detailed summary with sections.",
-            "key_findings": "1. Finding one\n2. Finding two",
-            "keywords": ["ai", "neuroscience"],
-        })
+    """Patch asyncio.create_subprocess_exec to return a mock Claude CLI response.
+
+    Emits the list-envelope shape (`[{type: assistant, message: {content: [...]}}]`)
+    that `call_claude` now parses — matches what `claude -p --output-format json`
+    actually produces.
+    """
+    summary_text = json.dumps({
+        "title": "Test Paper Title",
+        "authors": ["Author One", "Author Two"],
+        "authors_short": "One et al.",
+        "publication_date": "2024-01-15",
+        "journal": "Nature",
+        "doi": None,
+        "short_summary": "This is a short summary of the test paper.",
+        "detailed_summary": "This is a detailed summary with sections.",
+        "key_findings": "1. Finding one\n2. Finding two",
+        "keywords": ["ai", "neuroscience"],
     })
+    claude_output = json.dumps([
+        {
+            "type": "assistant",
+            "message": {"content": [{"type": "text", "text": summary_text}]},
+        }
+    ])
 
     mock_process = AsyncMock()
-    mock_process.communicate.return_value = (summary_json.encode(), b"")
+    mock_process.communicate.return_value = (claude_output.encode(), b"")
     mock_process.returncode = 0
     mock_process.kill = MagicMock()
     mock_process.wait = AsyncMock()

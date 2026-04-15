@@ -13,19 +13,15 @@ from sqlalchemy import select
 
 from app.core.enums import StepName
 from app.papers.models import Paper
-from app.processing.claude_service import (
-    CrossRefOutput,
-    sanitize_crossref_output,
-    sanitize_summary_for_reuse,
-)
+from app.processing.claude_service import sanitize_summary_for_reuse
 from app.processing.crossref_service import (
+    CrossRefOutput,
     canonical_pair,
     find_crossref_candidates,
     run_crossref_step,
+    sanitize_crossref_output,
 )
-from app.processing.exceptions import ClaudeError
 from app.processing.models import CrossReference
-
 
 # ---------------------------------------------------------------------------
 # Helpers
