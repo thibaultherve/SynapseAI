@@ -120,7 +120,7 @@ async def test_retry_invalid_step_name(client, db):
 
 
 @pytest.mark.asyncio
-async def test_processing_pipeline_pdf(db, tmp_upload_dir, mock_claude):
+async def test_processing_pipeline_pdf(db, tmp_upload_dir, mock_claude, mock_embedding):
     """Integration: process_paper runs full pipeline PDF -> extracted -> summarized."""
     from app.processing.service import process_paper
 

@@ -5,11 +5,20 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from app.processing import embedding_service
+from tests.conftest import (
+    pause_embedding_lifecycle_mocks,
+    resume_embedding_lifecycle_mocks,
+)
 
 
 @pytest.fixture(autouse=True)
 def _reset_embedding_state():
-    """Reset the embedding service global state before each test."""
+    """Reset the embedding service global state before each test.
+
+    Pauses the session-wide `load_embedding_model` / `unload_embedding_model`
+    patches set up by conftest so this module can exercise the real functions.
+    """
+    pause_embedding_lifecycle_mocks()
     embedding_service._model = None
     embedding_service._executor = None
     yield
@@ -17,6 +26,7 @@ def _reset_embedding_state():
     if embedding_service._executor is not None:
         embedding_service._executor.shutdown(wait=False)
         embedding_service._executor = None
+    resume_embedding_lifecycle_mocks()
 
 
 def _make_mock_model():

@@ -47,8 +47,10 @@ async def test_create_paper_creates_six_steps(client, tmp_upload_dir):
 
 
 @pytest.mark.asyncio
-async def test_step_transitions_pdf_success(db, tmp_upload_dir, mock_claude):
-    """T2a: Full pipeline transitions steps through pending -> processing -> done."""
+async def test_step_transitions_pdf_success(
+    db, tmp_upload_dir, mock_claude, mock_embedding
+):
+    """T2a: Full pipeline transitions all 6 steps through pending -> processing -> done."""
     from app.processing.service import process_paper
 
     paper_id = uuid.uuid4()
@@ -83,14 +85,18 @@ async def test_step_transitions_pdf_success(db, tmp_upload_dir, mock_claude):
         )).scalars().all()
         step_map = {s.step: s for s in steps}
 
-        # First 4 steps should be done with timestamps
-        for name in ("uploading", "extracting", "summarizing", "tagging"):
+        # All 6 steps should be done with timestamps (single-paper corpus →
+        # crossrefing finds no candidates but still marks done).
+        for name in (
+            "uploading",
+            "extracting",
+            "summarizing",
+            "tagging",
+            "embedding",
+            "crossrefing",
+        ):
             assert step_map[name].status == StepStatus.DONE
             assert step_map[name].completed_at is not None
-
-        # Remaining steps stay pending
-        for name in ("embedding", "crossrefing"):
-            assert step_map[name].status == StepStatus.PENDING
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,9 @@ os.environ["DATABASE_URL"] = (
 # Mock embedding model loading before importing app (lifespan calls load_embedding_model).
 # Module-level patches are required because the lifespan runs when the ASGI
 # test client starts, before per-test fixtures are available.
+# Tests that exercise the real load/unload flow (tests/processing/test_embedding_service.py)
+# can call `pause_embedding_lifecycle_mocks()` / `resume_embedding_lifecycle_mocks()` to
+# temporarily restore the real functions.
 _load_patch = patch(
     "app.processing.embedding_service.load_embedding_model",
     new_callable=AsyncMock,
@@ -24,6 +27,24 @@ _load_patch.start()
 _unload_patch.start()
 atexit.register(_load_patch.stop)
 atexit.register(_unload_patch.stop)
+
+_embedding_lifecycle_mocks_active = True
+
+
+def pause_embedding_lifecycle_mocks() -> None:
+    global _embedding_lifecycle_mocks_active
+    if _embedding_lifecycle_mocks_active:
+        _load_patch.stop()
+        _unload_patch.stop()
+        _embedding_lifecycle_mocks_active = False
+
+
+def resume_embedding_lifecycle_mocks() -> None:
+    global _embedding_lifecycle_mocks_active
+    if not _embedding_lifecycle_mocks_active:
+        _load_patch.start()
+        _unload_patch.start()
+        _embedding_lifecycle_mocks_active = True
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
@@ -187,7 +208,11 @@ def mock_claude(monkeypatch):
 
 @pytest.fixture
 def mock_embedding(monkeypatch):
-    """Mock the embedding service encode_batch to return fake 768-dim vectors."""
+    """Mock the embedding service encode_batch/encode_text to return fake 768-dim vectors.
+
+    Patches every module that imports encode_* from embedding_service — keep this list
+    in sync with `grep -rn "from app.processing.embedding_service import" app/`.
+    """
     FAKE_DIM = 768
 
     async def fake_encode_batch(texts):
@@ -201,6 +226,9 @@ def mock_embedding(monkeypatch):
     )
     monkeypatch.setattr(
         "app.search.service.encode_text", fake_encode_text
+    )
+    monkeypatch.setattr(
+        "app.chat.service.encode_text", fake_encode_text
     )
 
 

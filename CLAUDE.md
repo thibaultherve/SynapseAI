@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **SynapseAI** (1719 symbols, 3806 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **SynapseAI** (1723 symbols, 3808 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -99,3 +99,19 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Project Status — Sprint 4 (Cross-refs, Graph & Insights)
+
+**Backend API is feature-complete for v1.** Sprint 4 delivered:
+
+- **Cross-references** : step `crossrefing` wired into the pipeline (pgvector top-K → cosine gate 0.7 → Claude qualification under unified `_claude_semaphore(1)`). `GET /api/papers/:id/crossrefs` with `relation_type` / `min_strength` / `limit` filters.
+- **Graph** : domain `graph/` with `GET /api/graph` (clamps 500 nodes / 2000 edges, ETag + 304, 413 `GRAPH_TOO_LARGE` with ego-network suggestion) and `GET /api/graph/paper/:id?depth=1-3` (native FastAPI `Query(ge=1, le=3)` clamp).
+- **Insights** : domain `insights/` with CRUD + rating + `POST /api/insights/refresh` (409 when `_insight_lock` held, 200 `skipped:true` on idempotent hash). Auto-generation post-crossref via `InsightDebouncer` (30s debounce + `asyncio.Lock`). Dedup via `SequenceMatcher` on `title_normalized`; migration `add_insight_title_normalized` pre-provisioned `pg_trgm` + GIN trigram index for SQL bascule when N>500.
+- **Observabilité** : structured logs `crossref_completed` (paper_id, pairs_generated, pairs_kept, pairs_dropped_none, pairs_failed, duration_ms) and `insight_generation_completed` (insights_new, insights_merged, duration_ms, hash). Debouncer emits `insight_debouncer_skipped_locked` / `_generation_timed_out` / `_generation_failed`.
+- **Rate limits** : applied to every new endpoint (see `slowapi @limiter.limit(...)` decorators in `graph/router.py`, `insights/router.py`, `papers/router.py::get_paper_crossrefs`).
+
+### Technical debt — v2
+
+- **IDOR** : all endpoints are single-user v1. When multi-user auth lands, `papers/`, `insights/`, `graph/`, `crossrefs/` queries need per-user scoping and ownership checks. Tracked as v2 debt.
+- **Insight dedup at scale** : Python `SequenceMatcher` is O(N) per insert, acceptable up to ~500 insights. Beyond that, switch to `pg_trgm` similarity query against `insight.title_normalized` (index already in place — no new migration required).
+- **Per-user rate limits + audit log** : deferred to v2 along with auth.
