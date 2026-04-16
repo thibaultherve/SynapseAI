@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **SynapseAI** (1753 symbols, 3845 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **SynapseAI** (1751 symbols, 3844 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -115,3 +115,38 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 - **IDOR** : all endpoints are single-user v1. When multi-user auth lands, `papers/`, `insights/`, `graph/`, `crossrefs/` queries need per-user scoping and ownership checks. Tracked as v2 debt.
 - **Insight dedup at scale** : Python `SequenceMatcher` is O(N) per insert, acceptable up to ~500 insights. Beyond that, switch to `pg_trgm` similarity query against `insight.title_normalized` (index already in place — no new migration required).
 - **Per-user rate limits + audit log** : deferred to v2 along with auth.
+
+## Logging conventions
+
+Central config lives in `app/core/logging.py`. `app/main.py` calls `configure_logging(settings.LOG_LEVEL)` at import time — all `logging.getLogger(__name__)` records are routed through a single JSON handler on stdout.
+
+### Emission
+
+- Use `logger.info("event_name", extra={"key": value})` for structured logs. The event name goes in `msg`; extras become top-level JSON fields.
+- Old-style `logger.info("loaded %s", name)` still works — the formatted message lands in `msg`.
+- Every record carries `request_id` (from `app.core.logging.request_id_var`, set by `RequestIdMiddleware`) plus `ts`, `level`, `logger`, `module`, `func`, `line`.
+
+### Redaction (automatic, runs before the formatter)
+
+| Pattern | Replacement |
+|---------|-------------|
+| Email addresses | `<email>` |
+| Base64 runs ≥200 chars | `<b64:N>` (N = matched length) |
+| UUID fence delimiters `<<<…>>>` | `<delim>` |
+| Extras named `extracted_text`, `user_message`, `prompt`, `summary` | `{"sha256": ..., "len": ...}` |
+
+Redaction is a last-line-of-defense against leaking user data into ops logs — **never** rely on it in place of not logging the secret in the first place. If you need a value for debugging, log its `sha256`/`len` fingerprint explicitly.
+
+### Request correlation
+
+Every HTTP response includes `X-Request-ID`. Clients may send one (alphanumeric + `-_.`, ≤128 chars) or let the server generate `uuid4().hex`. The id lives in a `ContextVar` so async handlers, services, and background tasks spawned from the request all see it.
+
+## Single-worker constraint
+
+v1 holds several pieces of state in-process: the `slowapi` limiter counters, `_paper_events`, the `_claude_semaphore`, and the `InsightDebouncer` lock. Running with `WEB_CONCURRENCY>1` (or uvicorn `--workers N>1`) would desync every one of these, so `app.main.lifespan` refuses to start unless `WEB_CONCURRENCY=1`. When Redis and distributed state land in v2, lift this guard.
+
+## Rate-limit keying
+
+`app/core/ratelimit_key.py::trusted_client_ip` is the `slowapi` `key_func`. Behind a proxy, set `TRUSTED_PROXIES=["10.0.0.0/8", ...]` (JSON list in `.env`) with the proxy's IPs or CIDRs. Leave empty when running without a reverse proxy — that is the safe default ("trust nothing").
+
+The lookup picks the rightmost hop in `X-Forwarded-For` that is *not* in the trusted set; untrusted peers ignore XFF entirely.
