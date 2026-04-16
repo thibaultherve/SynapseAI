@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **SynapseAI** (1723 symbols, 3808 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **SynapseAI** (1753 symbols, 3845 relationships, 84 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -115,4 +115,3 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 - **IDOR** : all endpoints are single-user v1. When multi-user auth lands, `papers/`, `insights/`, `graph/`, `crossrefs/` queries need per-user scoping and ownership checks. Tracked as v2 debt.
 - **Insight dedup at scale** : Python `SequenceMatcher` is O(N) per insert, acceptable up to ~500 insights. Beyond that, switch to `pg_trgm` similarity query against `insight.title_normalized` (index already in place — no new migration required).
 - **Per-user rate limits + audit log** : deferred to v2 along with auth.
-
