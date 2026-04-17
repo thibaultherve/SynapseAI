@@ -358,6 +358,157 @@
                           "fontWeight": "500"
                         }
                       ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NtStv",
+                      "name": "FindingChip/Active",
+                      "context": "Filter chip 'Active' état — fond primary, icône + label blancs. Usage: chip 'All · N' ou état sélectionné sur une catégorie de finding.",
+                      "reusable": true,
+                      "fill": "$--primary",
+                      "cornerRadius": 9999,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--primary"
+                      },
+                      "gap": 6,
+                      "padding": [
+                        4,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "8s7lj",
+                          "name": "chipIcon",
+                          "width": 12,
+                          "height": 12,
+                          "iconFontName": "layers",
+                          "iconFontFamily": "lucide",
+                          "fill": "$--primary-foreground"
+                        },
+                        {
+                          "type": "text",
+                          "id": "2J3eF",
+                          "name": "chipLabel",
+                          "fill": "$--primary-foreground",
+                          "content": "All · 12",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Sans",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ySU0s",
+                      "name": "FindingChip/Default",
+                      "context": "Filter chip 'Default' état — outline, icône colorée par type de finding (contradiction/gap/methodology/concordance) + label muted.",
+                      "reusable": true,
+                      "cornerRadius": 9999,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "gap": 6,
+                      "padding": [
+                        4,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "Xy2Z2",
+                          "name": "chipIcon",
+                          "width": 12,
+                          "height": 12,
+                          "iconFontName": "circle-dashed",
+                          "iconFontFamily": "lucide",
+                          "fill": "$--muted-foreground"
+                        },
+                        {
+                          "type": "text",
+                          "id": "SkG5T",
+                          "name": "chipLabel",
+                          "fill": "$--muted-foreground",
+                          "content": "Label N",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Sans",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "x6lSS",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "ySU0s",
+                      "name": "FindingChip/Contradiction",
+                      "context": "FindingChip variant 'Contradiction' — outline + icon triangle-alert tinted $--relation-contradiction. Content (label + count) overridable par instance via descendants Xy2Z2 (icon) et SkG5T (texte).",
+                      "descendants": {
+                        "Xy2Z2": {
+                          "iconFontName": "triangle-alert",
+                          "fill": "$--relation-contradiction"
+                        },
+                        "SkG5T": {
+                          "content": "Contradictions"
+                        }
+                      }
+                    },
+                    {
+                      "id": "E6eN2",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "ySU0s",
+                      "name": "FindingChip/Gap",
+                      "context": "FindingChip variant 'Gap' — outline + icon circle-dashed tinted $--relation-extends.",
+                      "descendants": {
+                        "Xy2Z2": {
+                          "iconFontName": "circle-dashed",
+                          "fill": "$--relation-extends"
+                        },
+                        "SkG5T": {
+                          "content": "Gaps"
+                        }
+                      }
+                    },
+                    {
+                      "id": "N1j31",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "ySU0s",
+                      "name": "FindingChip/Methodology",
+                      "context": "FindingChip variant 'Methodology' — outline + icon flask-conical tinted $--relation-methodology.",
+                      "descendants": {
+                        "Xy2Z2": {
+                          "iconFontName": "flask-conical",
+                          "fill": "$--relation-methodology"
+                        },
+                        "SkG5T": {
+                          "content": "Methodology"
+                        }
+                      }
+                    },
+                    {
+                      "id": "m5JXK",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "ySU0s",
+                      "name": "FindingChip/Concordance",
+                      "context": "FindingChip variant 'Concordance' — outline + icon check-check tinted $--relation-concordance.",
+                      "descendants": {
+                        "Xy2Z2": {
+                          "iconFontName": "check-check",
+                          "fill": "$--relation-concordance"
+                        },
+                        "SkG5T": {
+                          "content": "Concordance"
+                        }
+                      }
                     }
                   ]
                 }
@@ -1313,584 +1464,70 @@
                       "type": "frame",
                       "id": "TfzPf",
                       "name": "ProcessingStatus/Default",
-                      "context": "Panneau AI Analyzing Steps affiche dans le tab dedie de PaperTabs. Liste des 5 steps du pipeline (Parse, Readable, Summarizing, Insights, Graph) avec timing (start, end, duration), status (done/processing/pending/error), raison d'erreur + bouton Retry inline. SSE updates via useProcessingEvents(paperId). Export step retire.",
+                      "context": "Strip ultra-minimal du pipeline IA, inline dans PaperMetadataBar. 6 micro-dots (uploading/extracting/summarizing/tagging/embedding/crossrefing) colorés par état (done/processing/pending/error) + label compact 'Enriching · N/6'. Click = popover avec détails + retry (popover dans un composant séparé). Remplace l'ancien tab AI Steps.",
                       "reusable": true,
-                      "width": "fill_container",
-                      "fill": "$--card",
-                      "cornerRadius": 12,
+                      "fill": "#00000000",
                       "stroke": {
-                        "thickness": 1,
-                        "fill": "$--border"
+                        "thickness": 0
                       },
-                      "layout": "vertical",
-                      "padding": 20,
+                      "gap": 10,
+                      "alignItems": "center",
                       "children": [
                         {
                           "type": "frame",
-                          "id": "GQsmr",
-                          "name": "psHead",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 4,
+                          "id": "KbWe3",
+                          "name": "psMiniDots",
+                          "gap": 3,
+                          "alignItems": "center",
                           "children": [
                             {
-                              "type": "frame",
-                              "id": "XGx4T",
-                              "name": "psHeadRow",
-                              "width": "fill_container",
-                              "gap": 10,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "QsAmf",
-                                  "name": "psTitle",
-                                  "fill": "$--foreground",
-                                  "content": "AI Analysis pipeline",
-                                  "lineHeight": 1.3,
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 14,
-                                  "fontWeight": "600"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "hsVSU",
-                                  "name": "psPill",
-                                  "fill": "$--accent",
-                                  "cornerRadius": 9999,
-                                  "gap": 5,
-                                  "padding": [
-                                    2,
-                                    7
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "ellipse",
-                                      "id": "bmie3",
-                                      "name": "psPillDot",
-                                      "fill": "$--step-processing",
-                                      "width": 5,
-                                      "height": 5
-                                    },
-                                    {
-                                      "type": "text",
-                                      "id": "Hhp7X",
-                                      "name": "psPillTxt",
-                                      "fill": "$--accent-foreground",
-                                      "content": "Running · step 3 / 5",
-                                      "fontFamily": "IBM Plex Sans",
-                                      "fontSize": 10,
-                                      "fontWeight": "600"
-                                    }
-                                  ]
-                                }
-                              ]
+                              "id": "mvMxH",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--primary"
                             },
                             {
-                              "type": "text",
-                              "id": "dUMHl",
-                              "name": "psSub",
-                              "fill": "$--muted-foreground",
-                              "content": "Started Apr 17, 14:02:31 · 18.2 s elapsed · 1 failure to resolve",
-                              "lineHeight": 1.5,
-                              "fontFamily": "IBM Plex Sans",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "id": "R5Yry",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--primary"
+                            },
+                            {
+                              "id": "eNzaz",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--primary"
+                            },
+                            {
+                              "id": "2bGqB",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--step-processing"
+                            },
+                            {
+                              "id": "dEKnU",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--border"
+                            },
+                            {
+                              "id": "HvhIs",
+                              "type": "ref",
+                              "ref": "rLQdW",
+                              "fill": "$--border"
                             }
                           ]
                         },
                         {
-                          "type": "frame",
-                          "id": "mmIMF",
-                          "name": "psList",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "padding": [
-                            12,
-                            0,
-                            0,
-                            0
-                          ],
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "Ms1bU",
-                              "name": "psS1",
-                              "width": "fill_container",
-                              "stroke": {
-                                "align": "inside",
-                                "thickness": {
-                                  "bottom": 1
-                                },
-                                "fill": "$--border"
-                              },
-                              "gap": 12,
-                              "padding": [
-                                10,
-                                0
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "tAVon",
-                                  "name": "psS1Ico",
-                                  "width": 18,
-                                  "height": 18,
-                                  "fill": "$--primary",
-                                  "cornerRadius": 9999,
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "YGcuu",
-                                      "name": "st1IcoI",
-                                      "width": 11,
-                                      "height": 11,
-                                      "iconFontName": "check",
-                                      "iconFontFamily": "lucide",
-                                      "fill": "$--primary-foreground"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "snsTK",
-                                  "name": "st1Name",
-                                  "fill": "$--foreground",
-                                  "content": "Parse PDF",
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 13,
-                                  "fontWeight": "500"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "3dSIm",
-                                  "name": "psS1Sp",
-                                  "width": "fill_container",
-                                  "height": 1
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "5rJpR",
-                                  "name": "st1Meta",
-                                  "fill": "$--muted-foreground",
-                                  "content": "14:02:31 → 14:02:34",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "normal"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "nyyol",
-                                  "name": "st1Dur",
-                                  "fill": "$--primary",
-                                  "content": "3.2s",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "xKsC3",
-                              "name": "psS2",
-                              "width": "fill_container",
-                              "stroke": {
-                                "align": "inside",
-                                "thickness": {
-                                  "bottom": 1
-                                },
-                                "fill": "$--border"
-                              },
-                              "gap": 12,
-                              "padding": [
-                                10,
-                                0
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "1Bv8H",
-                                  "name": "psS2Ico",
-                                  "width": 18,
-                                  "height": 18,
-                                  "fill": "$--primary",
-                                  "cornerRadius": 9999,
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "Cym1Z",
-                                      "name": "st2IcoI",
-                                      "width": 11,
-                                      "height": 11,
-                                      "iconFontName": "check",
-                                      "iconFontFamily": "lucide",
-                                      "fill": "$--primary-foreground"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "DKIyo",
-                                  "name": "st2Name",
-                                  "fill": "$--foreground",
-                                  "content": "Readable extracted",
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 13,
-                                  "fontWeight": "500"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "EZi1Y",
-                                  "name": "psS2Sp",
-                                  "width": "fill_container",
-                                  "height": 1
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "Ckg7S",
-                                  "name": "st2Meta",
-                                  "fill": "$--muted-foreground",
-                                  "content": "14:02:34 → 14:02:41",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "normal"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "aJgBr",
-                                  "name": "st2Dur",
-                                  "fill": "$--primary",
-                                  "content": "7.1s",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "iCeai",
-                              "name": "psS3",
-                              "width": "fill_container",
-                              "stroke": {
-                                "align": "inside",
-                                "thickness": {
-                                  "bottom": 1
-                                },
-                                "fill": "$--border"
-                              },
-                              "gap": 12,
-                              "padding": [
-                                10,
-                                0
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "vc0aa",
-                                  "name": "psS3Ico",
-                                  "width": 18,
-                                  "height": 18,
-                                  "fill": "$--step-processing",
-                                  "cornerRadius": 9999,
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "UoMZR",
-                                      "name": "st3IcoI",
-                                      "width": 11,
-                                      "height": 11,
-                                      "iconFontName": "loader-circle",
-                                      "iconFontFamily": "lucide",
-                                      "fill": "$--primary-foreground"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "08UmZ",
-                                  "name": "st3Name",
-                                  "fill": "$--foreground",
-                                  "content": "Summarizing",
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 13,
-                                  "fontWeight": "600"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "RHqtj",
-                                  "name": "psS3Sp",
-                                  "width": "fill_container",
-                                  "height": 1
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "Qazwf",
-                                  "name": "st3Meta",
-                                  "fill": "$--muted-foreground",
-                                  "content": "Started 14:02:41 · Claude drafting summaries…",
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 11,
-                                  "fontWeight": "normal"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "tQeuv",
-                                  "name": "st3Dur",
-                                  "fill": "$--step-processing",
-                                  "content": "18.2s",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "eWY3t",
-                              "name": "psS4",
-                              "width": "fill_container",
-                              "stroke": {
-                                "align": "inside",
-                                "thickness": {
-                                  "bottom": 1
-                                },
-                                "fill": "$--border"
-                              },
-                              "gap": 12,
-                              "padding": [
-                                10,
-                                0
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "p12kR",
-                                  "name": "psS4Ico",
-                                  "width": 18,
-                                  "height": 18,
-                                  "cornerRadius": 9999,
-                                  "stroke": {
-                                    "thickness": 1,
-                                    "fill": "$--border"
-                                  },
-                                  "justifyContent": "center",
-                                  "alignItems": "center"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "keQ5h",
-                                  "name": "st4Name",
-                                  "fill": "$--muted-foreground",
-                                  "content": "Insights",
-                                  "fontFamily": "IBM Plex Sans",
-                                  "fontSize": 13,
-                                  "fontWeight": "500"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "rzrrn",
-                                  "name": "psS4Sp",
-                                  "width": "fill_container",
-                                  "height": 1
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "sYlAn",
-                                  "name": "st4Dur",
-                                  "fill": "$--muted-foreground",
-                                  "content": "Pending",
-                                  "fontFamily": "IBM Plex Mono",
-                                  "fontSize": 11,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "fb9zn",
-                              "name": "psS5",
-                              "width": "fill_container",
-                              "layout": "vertical",
-                              "gap": 8,
-                              "padding": [
-                                10,
-                                0,
-                                12,
-                                0
-                              ],
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "UnDrw",
-                                  "name": "psS5Top",
-                                  "width": "fill_container",
-                                  "gap": 12,
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "frame",
-                                      "id": "ElBfF",
-                                      "name": "psS5Ico",
-                                      "width": 18,
-                                      "height": 18,
-                                      "fill": "$--destructive",
-                                      "cornerRadius": 9999,
-                                      "justifyContent": "center",
-                                      "alignItems": "center",
-                                      "children": [
-                                        {
-                                          "type": "icon_font",
-                                          "id": "J1Aed",
-                                          "name": "st5IcoI",
-                                          "width": 11,
-                                          "height": 11,
-                                          "iconFontName": "x",
-                                          "iconFontFamily": "lucide",
-                                          "fill": "$--destructive-foreground"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "text",
-                                      "id": "bCHRR",
-                                      "name": "st5Name",
-                                      "fill": "$--foreground",
-                                      "content": "Graph build",
-                                      "fontFamily": "IBM Plex Sans",
-                                      "fontSize": 13,
-                                      "fontWeight": "600"
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "ahf7t",
-                                      "name": "psS5Sp",
-                                      "width": "fill_container",
-                                      "height": 1
-                                    },
-                                    {
-                                      "type": "text",
-                                      "id": "EJaxO",
-                                      "name": "st5Dur",
-                                      "fill": "$--destructive",
-                                      "content": "Failed · 14:03:01",
-                                      "fontFamily": "IBM Plex Mono",
-                                      "fontSize": 11,
-                                      "fontWeight": "500"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "YsqfS",
-                                  "name": "psS5Body",
-                                  "width": "fill_container",
-                                  "layout": "vertical",
-                                  "gap": 8,
-                                  "padding": [
-                                    0,
-                                    0,
-                                    0,
-                                    30
-                                  ],
-                                  "children": [
-                                    {
-                                      "type": "text",
-                                      "id": "nZ17L",
-                                      "name": "st5Reason",
-                                      "fill": "$--muted-foreground",
-                                      "textGrowth": "fixed-width",
-                                      "width": "fill_container",
-                                      "content": "Embedding service unreachable: connection refused on port 8787 after 3 retries.",
-                                      "lineHeight": 1.5,
-                                      "fontFamily": "IBM Plex Sans",
-                                      "fontSize": 12,
-                                      "fontWeight": "normal"
-                                    },
-                                    {
-                                      "type": "frame",
-                                      "id": "sP2uA",
-                                      "name": "psS5Actions",
-                                      "gap": 6,
-                                      "alignItems": "center",
-                                      "children": [
-                                        {
-                                          "type": "frame",
-                                          "id": "bbXy5",
-                                          "name": "psS5Retry",
-                                          "fill": "$--primary",
-                                          "cornerRadius": 6,
-                                          "gap": 6,
-                                          "padding": [
-                                            5,
-                                            10
-                                          ],
-                                          "alignItems": "center",
-                                          "children": [
-                                            {
-                                              "type": "icon_font",
-                                              "id": "nPsib",
-                                              "name": "st5RetryI",
-                                              "width": 11,
-                                              "height": 11,
-                                              "iconFontName": "rotate-cw",
-                                              "iconFontFamily": "lucide",
-                                              "fill": "$--primary-foreground"
-                                            },
-                                            {
-                                              "type": "text",
-                                              "id": "PFW5W",
-                                              "name": "st5RetryT",
-                                              "fill": "$--primary-foreground",
-                                              "content": "Retry",
-                                              "fontFamily": "IBM Plex Sans",
-                                              "fontSize": 11,
-                                              "fontWeight": "600"
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "frame",
-                                          "id": "mvXmo",
-                                          "name": "psS5Logs",
-                                          "gap": 5,
-                                          "padding": [
-                                            5,
-                                            8
-                                          ],
-                                          "alignItems": "center",
-                                          "children": [
-                                            {
-                                              "type": "text",
-                                              "id": "cQWrg",
-                                              "name": "st5LogsT",
-                                              "fill": "$--muted-foreground",
-                                              "content": "View logs",
-                                              "fontFamily": "IBM Plex Sans",
-                                              "fontSize": 11,
-                                              "fontWeight": "500"
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
+                          "type": "text",
+                          "id": "8eV3q",
+                          "name": "psMiniLbl",
+                          "fill": "$--muted-foreground",
+                          "content": "Enriching · 3/6",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
                         }
                       ]
                     },
@@ -2084,30 +1721,59 @@
                       "name": "ConfidenceBadge/High",
                       "context": "Badge de confiance 'High' pour InsightCard (teal). Usage: insights dérivés de plusieurs papers concordants ou citation directe. Ref StatusDot + text.",
                       "reusable": true,
-                      "fill": "$--accent",
+                      "fill": "$--card",
                       "cornerRadius": 9999,
-                      "gap": 4,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "gap": 6,
                       "padding": [
-                        2,
+                        3,
                         8
                       ],
                       "alignItems": "center",
                       "children": [
                         {
-                          "id": "XJmOb",
-                          "type": "ref",
-                          "ref": "rLQdW",
-                          "fill": "$--confidence-high"
+                          "type": "frame",
+                          "id": "6WjjL",
+                          "name": "cbDots",
+                          "gap": 2.5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "8cNwO",
+                              "fill": "$--confidence-high",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "1fZdw",
+                              "fill": "$--confidence-high",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "oxSrJ",
+                              "fill": "$--confidence-high",
+                              "width": 5,
+                              "height": 5
+                            }
+                          ]
                         },
                         {
                           "type": "text",
-                          "id": "myTzl",
+                          "id": "h3MSb",
+                          "name": "cbLbl",
                           "fill": "$--confidence-high",
                           "content": "High",
                           "lineHeight": 1.4,
                           "fontFamily": "IBM Plex Sans",
                           "fontSize": 11,
-                          "fontWeight": "500"
+                          "fontWeight": "600"
                         }
                       ]
                     },
@@ -2117,30 +1783,59 @@
                       "name": "ConfidenceBadge/Moderate",
                       "context": "Badge de confiance 'Moderate' (amber). Insight plausible mais nécessite validation humaine.",
                       "reusable": true,
-                      "fill": "#FEF3C766",
+                      "fill": "$--card",
                       "cornerRadius": 9999,
-                      "gap": 4,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "gap": 6,
                       "padding": [
-                        2,
+                        3,
                         8
                       ],
                       "alignItems": "center",
                       "children": [
                         {
-                          "id": "Nqn9h",
-                          "type": "ref",
-                          "ref": "rLQdW",
-                          "fill": "$--confidence-moderate"
+                          "type": "frame",
+                          "id": "k0f2a",
+                          "name": "cbDots",
+                          "gap": 2.5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "wwSlj",
+                              "fill": "$--confidence-moderate",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "6ViW7",
+                              "fill": "$--confidence-moderate",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "SDhaV",
+                              "fill": "$--border",
+                              "width": 5,
+                              "height": 5
+                            }
+                          ]
                         },
                         {
                           "type": "text",
-                          "id": "p5KAl",
+                          "id": "m3Auv",
+                          "name": "cbLbl",
                           "fill": "$--confidence-moderate",
                           "content": "Moderate",
                           "lineHeight": 1.4,
                           "fontFamily": "IBM Plex Sans",
                           "fontSize": 11,
-                          "fontWeight": "500"
+                          "fontWeight": "600"
                         }
                       ]
                     },
@@ -2150,30 +1845,59 @@
                       "name": "ConfidenceBadge/Speculative",
                       "context": "Badge de confiance 'Speculative' (slate). Hypothèse ou extrapolation, à traiter avec prudence.",
                       "reusable": true,
-                      "fill": "$--muted",
+                      "fill": "$--card",
                       "cornerRadius": 9999,
-                      "gap": 4,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$--border"
+                      },
+                      "gap": 6,
                       "padding": [
-                        2,
+                        3,
                         8
                       ],
                       "alignItems": "center",
                       "children": [
                         {
-                          "id": "xC3Vg",
-                          "type": "ref",
-                          "ref": "rLQdW",
-                          "fill": "$--confidence-speculative"
+                          "type": "frame",
+                          "id": "89jxK",
+                          "name": "cbDots",
+                          "gap": 2.5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "05Sod",
+                              "fill": "$--confidence-speculative",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "FLzhL",
+                              "fill": "$--border",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "ellipse",
+                              "id": "hFNDZ",
+                              "fill": "$--border",
+                              "width": 5,
+                              "height": 5
+                            }
+                          ]
                         },
                         {
                           "type": "text",
-                          "id": "mZytM",
+                          "id": "NBROM",
+                          "name": "cbLbl",
                           "fill": "$--confidence-speculative",
                           "content": "Speculative",
                           "lineHeight": 1.4,
                           "fontFamily": "IBM Plex Sans",
                           "fontSize": 11,
-                          "fontWeight": "500"
+                          "fontWeight": "600"
                         }
                       ]
                     }
@@ -3142,7 +2866,7 @@
                   "type": "frame",
                   "id": "nLZDl",
                   "name": "PaperTabs/Default",
-                  "context": "Tabs internes PaperDetailPage: Document (PDF viewer), Summaries (short + detailed), Findings (insights structures), AI Steps (pipeline IA avec timing + erreurs + retry). Active = bordure teal bottom 2px + label primary. Pattern aria-tabs. AI Steps affiche un mini compteur de steps done a droite (ex 3/5) pour informer depuis n'importe quel tab.",
+                  "context": "Tabs internes PaperDetailPage (4 tabs, shortcut 1/2/3/4): Document (PDF/markdown), Summaries (short + detailed + key findings numerotés), Insights (cards filtrables par type contradiction/gap/methodology/concordance), Connections (ego graph centré sur le paper + liste papers liés). Tab AI Steps retiré: pipeline status désormais inline dans PaperMetadataBar via TfzPf.",
                   "reusable": true,
                   "stroke": {
                     "align": "inside",
@@ -3225,6 +2949,66 @@
                     },
                     {
                       "type": "frame",
+                      "id": "1WLm0",
+                      "name": "ptIns",
+                      "gap": 6,
+                      "padding": [
+                        10,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "tDQ2O",
+                          "name": "ptInsIcn",
+                          "width": 14,
+                          "height": 14,
+                          "iconFontName": "lightbulb",
+                          "iconFontFamily": "lucide",
+                          "fill": "$--muted-foreground"
+                        },
+                        {
+                          "type": "text",
+                          "id": "RIQ7A",
+                          "name": "ptInsTxt",
+                          "fill": "$--muted-foreground",
+                          "content": "Insights",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Sans",
+                          "fontSize": 13,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "W6Cfu",
+                          "name": "ptInsBadge",
+                          "fill": "$--accent",
+                          "cornerRadius": 9999,
+                          "padding": [
+                            1,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "dKWhc",
+                              "name": "ptInsBadgeTxt",
+                              "fill": "$--primary",
+                              "content": "12",
+                              "lineHeight": 1.4,
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 11,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
                       "id": "lOiAt",
                       "name": "ptFin",
                       "gap": 6,
@@ -3239,7 +3023,7 @@
                           "id": "9iJDq",
                           "width": 14,
                           "height": 14,
-                          "iconFontName": "flask-conical",
+                          "iconFontName": "waypoints",
                           "iconFontFamily": "lucide",
                           "fill": "$--muted-foreground"
                         },
@@ -3247,7 +3031,7 @@
                           "type": "text",
                           "id": "AjmLe",
                           "fill": "$--muted-foreground",
-                          "content": "Findings",
+                          "content": "Connections",
                           "lineHeight": 1.4,
                           "fontFamily": "IBM Plex Sans",
                           "fontSize": 13,
@@ -3270,66 +3054,13 @@
                               "type": "text",
                               "id": "CEEIm",
                               "fill": "$--primary",
-                              "content": "12",
+                              "content": "4",
                               "lineHeight": 1.4,
                               "fontFamily": "IBM Plex Mono",
                               "fontSize": 11,
                               "fontWeight": "500"
                             }
                           ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "07YUi",
-                      "name": "ptAI",
-                      "gap": 6,
-                      "padding": [
-                        10,
-                        16
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon_font",
-                          "id": "vzf3Z",
-                          "name": "ptAIIcn",
-                          "width": 14,
-                          "height": 14,
-                          "iconFontName": "activity",
-                          "iconFontFamily": "lucide",
-                          "fill": "$--muted-foreground"
-                        },
-                        {
-                          "type": "text",
-                          "id": "NN1J3",
-                          "name": "ptAITxt",
-                          "fill": "$--muted-foreground",
-                          "content": "AI Steps",
-                          "lineHeight": 1.4,
-                          "fontFamily": "IBM Plex Sans",
-                          "fontSize": 13,
-                          "fontWeight": "500"
-                        },
-                        {
-                          "type": "ellipse",
-                          "id": "e07wJ",
-                          "name": "ptAIDot",
-                          "fill": "$--muted-foreground",
-                          "width": 4,
-                          "height": 4
-                        },
-                        {
-                          "type": "text",
-                          "id": "zjYgp",
-                          "name": "ptAIStatus",
-                          "fill": "$--muted-foreground",
-                          "content": "5/6",
-                          "lineHeight": 1.4,
-                          "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11,
-                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -3359,7 +3090,7 @@
                   "type": "frame",
                   "id": "mXXAf",
                   "name": "MultiDocTabBar/Default",
-                  "context": "Barre de tabs multi-papers en haut de PaperDetailPage. Chaque tab: icon doc + title court + close X. Bouton + à droite pour ajouter. Drag-reorder support (dnd-kit). Tab actif = fond card + bordure top/left/right. Scroll horizontal en tablet.",
+                  "context": "Barre de tabs globale, toujours affichée sur toutes les pages de l'app (Dashboard + pages/hub + tabs papers ouverts). Tab 'Dashboard' à gauche, pinned, non-closable (pas de X) - point d'accès aux pages sidebar. Tabs papers: icon doc + title + close X, drag-reorder (dnd-kit). Bouton + à droite pour ouvrir un paper. Tab actif = fond card + bordure top/left/right.",
                   "reusable": true,
                   "width": 920,
                   "height": 44,
@@ -3378,6 +3109,47 @@
                   ],
                   "alignItems": "end",
                   "children": [
+                    {
+                      "type": "frame",
+                      "id": "Vq2ja",
+                      "name": "tabDash",
+                      "height": 32,
+                      "cornerRadius": [
+                        6,
+                        6,
+                        0,
+                        0
+                      ],
+                      "gap": 8,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "rnNbv",
+                          "name": "dashIcn",
+                          "width": 12,
+                          "height": 12,
+                          "iconFontName": "layout-dashboard",
+                          "iconFontFamily": "lucide",
+                          "fill": "$--muted-foreground"
+                        },
+                        {
+                          "type": "text",
+                          "id": "NxCyH",
+                          "name": "dashTxt",
+                          "fill": "$--muted-foreground",
+                          "content": "Dashboard",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Sans",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
                     {
                       "type": "frame",
                       "id": "WCet7",
@@ -4498,6 +4270,109 @@
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "Rfe86",
+                  "name": "rowLbl",
+                  "fill": "$--muted-foreground",
+                  "content": "InsightCard · Variants",
+                  "lineHeight": 1.4,
+                  "fontFamily": "IBM Plex Sans",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "ebjWi",
+                  "name": "varRow",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "id": "eHg3G",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "bHpIU",
+                      "name": "InsightCard/Contradiction",
+                      "context": "Variant InsightCard pour une contradiction. Icon triangle-alert + badge & label couleur $--relation-contradiction. Content (titre/excerpt/papers) reste overridable par instance.",
+                      "descendants": {
+                        "njTvq": {
+                          "fill": "$--relation-contradiction"
+                        },
+                        "njTvq/eW3Iw": {
+                          "iconFontName": "triangle-alert",
+                          "fill": "$--primary-foreground"
+                        },
+                        "XgJzn": {
+                          "content": "Contradiction",
+                          "fill": "$--relation-contradiction"
+                        }
+                      }
+                    },
+                    {
+                      "id": "MLF48",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "bHpIU",
+                      "name": "InsightCard/Gap",
+                      "context": "Variant InsightCard pour un gap/manque. Icon circle-dashed + badge & label couleur $--relation-extends.",
+                      "descendants": {
+                        "njTvq": {
+                          "fill": "$--relation-extends"
+                        },
+                        "njTvq/eW3Iw": {
+                          "iconFontName": "circle-dashed",
+                          "fill": "$--primary-foreground"
+                        },
+                        "XgJzn": {
+                          "content": "Gap",
+                          "fill": "$--relation-extends"
+                        }
+                      }
+                    },
+                    {
+                      "id": "pugTW",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "bHpIU",
+                      "name": "InsightCard/Methodology",
+                      "context": "Variant InsightCard pour une méthodologie convergente. Icon flask-conical + badge & label couleur $--relation-methodology.",
+                      "descendants": {
+                        "njTvq": {
+                          "fill": "$--relation-methodology"
+                        },
+                        "njTvq/eW3Iw": {
+                          "iconFontName": "flask-conical",
+                          "fill": "$--primary-foreground"
+                        },
+                        "XgJzn": {
+                          "content": "Methodology",
+                          "fill": "$--relation-methodology"
+                        }
+                      }
+                    },
+                    {
+                      "id": "rJUo6",
+                      "type": "ref",
+                      "reusable": true,
+                      "ref": "bHpIU",
+                      "name": "InsightCard/Concordance",
+                      "context": "Variant InsightCard pour une concordance / convergence de résultats. Icon check-check + badge & label couleur $--relation-concordance.",
+                      "descendants": {
+                        "njTvq": {
+                          "fill": "$--relation-concordance"
+                        },
+                        "njTvq/eW3Iw": {
+                          "iconFontName": "check-check",
+                          "fill": "$--primary-foreground"
+                        },
+                        "XgJzn": {
+                          "content": "Concordance",
+                          "fill": "$--relation-concordance"
+                        }
+                      }
+                    }
+                  ]
                 }
               ]
             },
@@ -4998,6 +4873,97 @@
                               "fill": "$--primary",
                               "width": 8,
                               "height": 8
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "HF5sz",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": "fill_container"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "5Pje8",
+                          "name": "themeRow",
+                          "width": "fill_container",
+                          "gap": 2,
+                          "padding": [
+                            10,
+                            0,
+                            4,
+                            0
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "859hp",
+                              "name": "s1",
+                              "width": 28,
+                              "height": 28,
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "bRmGd",
+                                  "name": "s1Icn",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "sun",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ERlhR",
+                              "name": "s2",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "$--sidebar-accent",
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "55ejw",
+                                  "name": "s2Icn",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "moon",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--primary"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Td40H",
+                              "name": "s3",
+                              "width": 28,
+                              "height": 28,
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "jMzvM",
+                                  "name": "s3Icn",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "monitor",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                }
+                              ]
                             }
                           ]
                         }
@@ -6609,10 +6575,9 @@
           "type": "frame",
           "id": "lq0h6",
           "name": "PaperMetadataBar/Default",
-          "context": "Bandeau metadata du paper actif sous les tabs PaperTabs triggers. H1 Plex Sans 20px + ligne authors · date · journal (Plex Sans 13) + ligne DOI (Plex Mono 12) + TagBadges.",
+          "context": "Bandeau metadata du paper actif sous les tabs. Row 1: titre H1 + ProcessingStatus strip compact (6 dots pipeline + label) aligné à droite. Row 2: authors · date · journal · DOI. Row 3: TagBadges.",
           "reusable": true,
           "width": 820,
-          "height": 104,
           "fill": "$--background",
           "stroke": {
             "align": "inside",
@@ -6629,17 +6594,32 @@
           ],
           "children": [
             {
-              "type": "text",
-              "id": "LREhS",
-              "name": "title",
-              "fill": "$--foreground",
-              "textGrowth": "fixed-width",
+              "type": "frame",
+              "id": "HijpN",
+              "name": "mbTitleRow",
               "width": "fill_container",
-              "content": "Hippocampal theta rhythms support memory retrieval in humans",
-              "lineHeight": 1.25,
-              "fontFamily": "IBM Plex Sans",
-              "fontSize": 20,
-              "fontWeight": "600"
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LREhS",
+                  "name": "title",
+                  "fill": "$--foreground",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Hippocampal theta rhythms support memory retrieval in humans",
+                  "lineHeight": 1.25,
+                  "fontFamily": "IBM Plex Sans",
+                  "fontSize": 20,
+                  "fontWeight": "600"
+                },
+                {
+                  "id": "KYaBi",
+                  "type": "ref",
+                  "ref": "TfzPf"
+                }
+              ]
             },
             {
               "type": "frame",
@@ -6998,6 +6978,13 @@
           "height": 900,
           "layout": "vertical",
           "children": [
+            {
+              "id": "WzNvS",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t6"
+            },
             {
               "type": "frame",
               "id": "YJXng",
@@ -7429,6 +7416,13 @@
           "height": 900,
           "layout": "vertical",
           "children": [
+            {
+              "id": "7WYH9",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t5"
+            },
             {
               "type": "frame",
               "id": "xzXex",
@@ -7946,7 +7940,7 @@
       "id": "lI1K3",
       "x": 4120,
       "y": 2156,
-      "name": "PaperDetailPage / Readable / Light",
+      "name": "PaperDetailPage / Summaries / Light",
       "theme": {
         "Mode": "Light"
       },
@@ -8187,7 +8181,7 @@
       "id": "eCqj0",
       "x": 4120,
       "y": 1116,
-      "name": "PaperDetailPage / Readable / Dark",
+      "name": "PaperDetailPage / Summaries / Dark",
       "theme": {
         "Mode": "Dark"
       },
@@ -8409,196 +8403,6 @@
                   "children": [
                     {
                       "id": "6CpOq",
-                      "type": "ref",
-                      "ref": "qIAZ8",
-                      "width": "fill_container",
-                      "height": "fill_container",
-                      "name": "chatA"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "frame",
-      "id": "to9tq",
-      "x": 4120,
-      "y": 3174,
-      "name": "PaperDetailPage / Processing / Light",
-      "theme": {
-        "Mode": "Light"
-      },
-      "clip": true,
-      "width": 1440,
-      "height": 900,
-      "fill": "$--background",
-      "layout": "none",
-      "children": [
-        {
-          "id": "mjtzF",
-          "type": "ref",
-          "ref": "YHowe",
-          "name": "sidebarC",
-          "x": 0,
-          "y": 0,
-          "height": 900
-        },
-        {
-          "type": "frame",
-          "id": "1oJC0",
-          "layoutPosition": "absolute",
-          "x": 64,
-          "y": 0,
-          "name": "contentC",
-          "width": 1376,
-          "height": 900,
-          "fill": "$--background",
-          "layout": "vertical",
-          "children": [
-            {
-              "id": "NcIav",
-              "type": "ref",
-              "ref": "mXXAf",
-              "width": "fill_container",
-              "name": "tabbarA"
-            },
-            {
-              "type": "frame",
-              "id": "khaBI",
-              "name": "workA",
-              "width": "fill_container",
-              "height": "fill_container",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "C07qO",
-                  "name": "leftA",
-                  "width": 826,
-                  "height": "fill_container",
-                  "stroke": {
-                    "align": "inside",
-                    "thickness": {
-                      "right": 1
-                    },
-                    "fill": "$--border"
-                  },
-                  "layout": "vertical",
-                  "children": [
-                    {
-                      "id": "p0iAy",
-                      "type": "ref",
-                      "ref": "nLZDl",
-                      "width": "fill_container",
-                      "name": "ptabsA",
-                      "descendants": {
-                        "PTvvV": {
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": 0,
-                            "fill": "$--border"
-                          }
-                        },
-                        "T6k5b": {
-                          "fill": "$--muted-foreground"
-                        },
-                        "aZtm1": {
-                          "fill": "$--muted-foreground",
-                          "fontWeight": "500"
-                        },
-                        "r1qnj": {
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": 0,
-                            "fill": "$--border"
-                          }
-                        },
-                        "Iqthm": {
-                          "fill": "$--muted-foreground"
-                        },
-                        "OLOF5": {
-                          "fill": "$--muted-foreground",
-                          "fontWeight": "500"
-                        },
-                        "07YUi": {
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": {
-                              "bottom": 2
-                            },
-                            "fill": "$--primary"
-                          }
-                        },
-                        "vzf3Z": {
-                          "fill": "$--primary"
-                        },
-                        "NN1J3": {
-                          "fill": "$--primary",
-                          "fontWeight": "600"
-                        },
-                        "zjYgp": {
-                          "fill": "$--primary"
-                        }
-                      }
-                    },
-                    {
-                      "id": "vYqpi",
-                      "type": "ref",
-                      "ref": "lq0h6",
-                      "width": "fill_container",
-                      "name": "metaA"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "vFHFv",
-                      "name": "aiStepsContent",
-                      "clip": true,
-                      "width": "fill_container",
-                      "height": "fill_container",
-                      "layout": "vertical",
-                      "gap": 16,
-                      "padding": [
-                        24,
-                        32
-                      ],
-                      "children": [
-                        {
-                          "id": "CLoOB",
-                          "type": "ref",
-                          "ref": "TfzPf",
-                          "width": "fill_container",
-                          "name": "aiPs",
-                          "fill": {
-                            "type": "color",
-                            "color": "$--card",
-                            "enabled": false
-                          },
-                          "stroke": {
-                            "thickness": 0,
-                            "fill": "$--border"
-                          },
-                          "cornerRadius": 0,
-                          "padding": 0
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "PK0hU",
-                  "name": "rightA",
-                  "width": 550,
-                  "height": "fill_container",
-                  "fill": "$--background",
-                  "layout": "vertical",
-                  "padding": 16,
-                  "children": [
-                    {
-                      "id": "sRmUN",
                       "type": "ref",
                       "ref": "qIAZ8",
                       "width": "fill_container",
@@ -8894,6 +8698,13 @@
           "height": 900,
           "layout": "vertical",
           "children": [
+            {
+              "id": "053qJ",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t1"
+            },
             {
               "type": "frame",
               "id": "mUq5I",
@@ -9306,6 +9117,13 @@
           "height": 1024,
           "layout": "vertical",
           "children": [
+            {
+              "id": "CUKpU",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t3"
+            },
             {
               "type": "frame",
               "id": "hTQwD",
@@ -9736,6 +9554,13 @@
           "height": 900,
           "layout": "vertical",
           "children": [
+            {
+              "id": "X6Etx",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t2"
+            },
             {
               "type": "frame",
               "id": "GgjEN",
@@ -10261,6 +10086,13 @@
           "layout": "vertical",
           "children": [
             {
+              "id": "S5nBz",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container",
+              "name": "t4"
+            },
+            {
               "type": "frame",
               "id": "K3v0K",
               "name": "header",
@@ -10771,7 +10603,7 @@
     {
       "type": "frame",
       "id": "PiuGr",
-      "x": 5640,
+      "x": 5680,
       "y": 1116,
       "name": "PaperDetailPage / Document / Dark",
       "theme": {
@@ -10857,18 +10689,16 @@
                         "r1qnj": {
                           "stroke": {
                             "align": "inside",
-                            "thickness": {
-                              "bottom": 2
-                            },
-                            "fill": "$--primary"
+                            "thickness": 0,
+                            "fill": "$--border"
                           }
                         },
                         "Iqthm": {
-                          "fill": "$--primary"
+                          "fill": "$--muted-foreground"
                         },
                         "OLOF5": {
-                          "fill": "$--primary",
-                          "fontWeight": "600"
+                          "fill": "$--muted-foreground",
+                          "fontWeight": "500"
                         }
                       }
                     },
@@ -10886,98 +10716,112 @@
                       "clip": true,
                       "width": "fill_container",
                       "height": "fill_container",
+                      "fill": "$--muted",
                       "layout": "vertical",
-                      "gap": 20,
+                      "gap": 12,
                       "padding": [
-                        24,
-                        32
+                        20,
+                        24
                       ],
                       "children": [
                         {
-                          "type": "text",
-                          "id": "2cKdq",
-                          "name": "ssLabel",
-                          "fill": "$--muted-foreground",
-                          "content": "SHORT SUMMARY",
-                          "fontFamily": "IBM Plex Sans",
-                          "fontSize": 11,
-                          "fontWeight": "600",
-                          "letterSpacing": 1
-                        },
-                        {
-                          "type": "text",
-                          "id": "PVby5",
-                          "name": "ssBody",
-                          "fill": "$--foreground",
-                          "textGrowth": "fixed-width",
-                          "width": "fill_container",
-                          "content": "Hippocampal theta (4–10 Hz) oscillations entrain cortical activity during memory retrieval. Intracranial EEG in 17 epilepsy patients shows phase-locked CA1 firing that predicts recall accuracy. Effect reverses under anesthesia — suggesting theta is causally required rather than an epiphenomenon of arousal.",
-                          "lineHeight": 1.65,
-                          "fontFamily": "IBM Plex Serif",
-                          "fontSize": 16,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "rectangle",
-                          "id": "BzQCU",
-                          "name": "divA",
-                          "fill": "$--border",
-                          "width": "fill_container",
-                          "height": 1
-                        },
-                        {
                           "type": "frame",
-                          "id": "nxBnJ",
-                          "name": "dsHead",
+                          "id": "axNHS",
+                          "name": "pdfHdr",
                           "width": "fill_container",
-                          "gap": 8,
+                          "gap": 12,
+                          "justifyContent": "space_between",
                           "alignItems": "center",
                           "children": [
                             {
-                              "type": "icon_font",
-                              "id": "j3kxa",
-                              "name": "dsIcn",
-                              "width": 14,
-                              "height": 14,
-                              "iconFontName": "chevron-down",
-                              "iconFontFamily": "lucide",
-                              "fill": "$--muted-foreground"
+                              "type": "frame",
+                              "id": "vlbhQ",
+                              "name": "pdfHdrL",
+                              "gap": 8,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "me34F",
+                                  "name": "pdfIcn",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "file-text",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--primary"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QdLSS",
+                                  "name": "pdfLbl",
+                                  "fill": "$--foreground",
+                                  "content": "colgin2024_hippocampal_theta.pdf",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Mono",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "1ybAU",
+                                  "name": "pdfSize",
+                                  "fill": "$--muted-foreground",
+                                  "content": "· 2.4 MB · 18 pages",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
                             },
                             {
-                              "type": "text",
-                              "id": "HCQ6X",
-                              "name": "dsLabel",
-                              "fill": "$--muted-foreground",
-                              "content": "DETAILED SUMMARY",
-                              "fontFamily": "IBM Plex Sans",
-                              "fontSize": 11,
-                              "fontWeight": "600",
-                              "letterSpacing": 1
-                            },
-                            {
-                              "type": "text",
-                              "id": "zkyqT",
-                              "name": "dsCount",
-                              "fill": "$--muted-foreground",
-                              "content": "6 sections",
-                              "fontFamily": "IBM Plex Sans",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "type": "frame",
+                              "id": "L0G2Z",
+                              "name": "pdfHdrR",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "GqNYK",
+                                  "name": "pdfOpen",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "external-link",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "icon_font",
+                                  "id": "rNHoD",
+                                  "name": "pdfDown",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "download",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "icon_font",
+                                  "id": "ZVi6k",
+                                  "name": "pdfPrint",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "printer",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                }
+                              ]
                             }
                           ]
                         },
                         {
-                          "type": "text",
-                          "id": "K7eQM",
-                          "name": "dsBody",
-                          "fill": "$--foreground",
-                          "textGrowth": "fixed-width",
+                          "id": "tS21T",
+                          "type": "ref",
+                          "ref": "Lx9LL",
                           "width": "fill_container",
-                          "content": "Background. Theta oscillations have long been implicated in rodent spatial memory; whether they serve the same role in humans remained debated (Buzsáki 2019; Herweg 2020).\n\nMethods. 17 drug-resistant epilepsy patients (6 F, age 22–48) performed a free-recall task during intracranial recordings. 132 microwire contacts in CA1–CA3. Phase-locking indices (PLI) computed per unit vs. local theta.",
-                          "lineHeight": 1.7,
-                          "fontFamily": "IBM Plex Serif",
-                          "fontSize": 14,
-                          "fontWeight": "normal"
+                          "height": "fill_container",
+                          "name": "pdfViewer"
                         }
                       ]
                     }
@@ -11014,7 +10858,7 @@
       "id": "Xv8wD",
       "x": 7240,
       "y": 1116,
-      "name": "PaperDetailPage / Findings / Dark",
+      "name": "PaperDetailPage / Insights / Dark",
       "theme": {
         "Mode": "Dark"
       },
@@ -11110,6 +10954,38 @@
                         "OLOF5": {
                           "fill": "$--primary",
                           "fontWeight": "600"
+                        },
+                        "1WLm0": {
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 2
+                            },
+                            "fill": "$--primary"
+                          }
+                        },
+                        "tDQ2O": {
+                          "fill": "$--primary"
+                        },
+                        "RIQ7A": {
+                          "fill": "$--primary",
+                          "fontWeight": "600"
+                        },
+                        "lOiAt": {
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 2
+                            },
+                            "fill": "$--primary"
+                          }
+                        },
+                        "9iJDq": {
+                          "fill": "$--primary"
+                        },
+                        "AjmLe": {
+                          "fill": "$--primary",
+                          "fontWeight": "600"
                         }
                       }
                     },
@@ -11128,97 +11004,255 @@
                       "width": "fill_container",
                       "height": "fill_container",
                       "layout": "vertical",
-                      "gap": 20,
+                      "gap": 16,
                       "padding": [
-                        24,
-                        32
+                        20,
+                        24
                       ],
                       "children": [
                         {
-                          "type": "text",
-                          "id": "lqZVQ",
-                          "name": "ssLabel",
-                          "fill": "$--muted-foreground",
-                          "content": "SHORT SUMMARY",
-                          "fontFamily": "IBM Plex Sans",
-                          "fontSize": 11,
-                          "fontWeight": "600",
-                          "letterSpacing": 1
-                        },
-                        {
-                          "type": "text",
-                          "id": "I8e3I",
-                          "name": "ssBody",
-                          "fill": "$--foreground",
-                          "textGrowth": "fixed-width",
-                          "width": "fill_container",
-                          "content": "Hippocampal theta (4–10 Hz) oscillations entrain cortical activity during memory retrieval. Intracranial EEG in 17 epilepsy patients shows phase-locked CA1 firing that predicts recall accuracy. Effect reverses under anesthesia — suggesting theta is causally required rather than an epiphenomenon of arousal.",
-                          "lineHeight": 1.65,
-                          "fontFamily": "IBM Plex Serif",
-                          "fontSize": 16,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "rectangle",
-                          "id": "s1syj",
-                          "name": "divA",
-                          "fill": "$--border",
-                          "width": "fill_container",
-                          "height": 1
-                        },
-                        {
                           "type": "frame",
-                          "id": "sbElm",
-                          "name": "dsHead",
+                          "id": "O9JDX",
+                          "name": "fHdr",
                           "width": "fill_container",
-                          "gap": 8,
+                          "gap": 12,
+                          "justifyContent": "space_between",
                           "alignItems": "center",
                           "children": [
                             {
-                              "type": "icon_font",
-                              "id": "x6OZJ",
-                              "name": "dsIcn",
-                              "width": 14,
-                              "height": 14,
-                              "iconFontName": "chevron-down",
-                              "iconFontFamily": "lucide",
-                              "fill": "$--muted-foreground"
+                              "type": "frame",
+                              "id": "T9MDC",
+                              "name": "fHdrL",
+                              "gap": 10,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "KDh1N",
+                                  "name": "fTitle",
+                                  "fill": "$--foreground",
+                                  "content": "Insights",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "xporP",
+                                  "name": "fCount",
+                                  "fill": "$--muted-foreground",
+                                  "content": "12 insights · updated 2 min ago",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
                             },
                             {
-                              "type": "text",
-                              "id": "nZSVs",
-                              "name": "dsLabel",
-                              "fill": "$--muted-foreground",
-                              "content": "DETAILED SUMMARY",
-                              "fontFamily": "IBM Plex Sans",
-                              "fontSize": 11,
-                              "fontWeight": "600",
-                              "letterSpacing": 1
-                            },
-                            {
-                              "type": "text",
-                              "id": "DcglB",
-                              "name": "dsCount",
-                              "fill": "$--muted-foreground",
-                              "content": "6 sections",
-                              "fontFamily": "IBM Plex Sans",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "type": "frame",
+                              "id": "haoSH",
+                              "name": "fHdrR",
+                              "gap": 8,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "NMUk0",
+                                  "name": "fRefIcn",
+                                  "width": 13,
+                                  "height": 13,
+                                  "iconFontName": "refresh-cw",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "a98Tu",
+                                  "name": "fRefTxt",
+                                  "fill": "$--muted-foreground",
+                                  "content": "Refresh",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
                             }
                           ]
                         },
                         {
-                          "type": "text",
-                          "id": "GYb5s",
-                          "name": "dsBody",
-                          "fill": "$--foreground",
-                          "textGrowth": "fixed-width",
+                          "type": "frame",
+                          "id": "kvjXW",
+                          "name": "fChips",
                           "width": "fill_container",
-                          "content": "Background. Theta oscillations have long been implicated in rodent spatial memory; whether they serve the same role in humans remained debated (Buzsáki 2019; Herweg 2020).\n\nMethods. 17 drug-resistant epilepsy patients (6 F, age 22–48) performed a free-recall task during intracranial recordings. 132 microwire contacts in CA1–CA3. Phase-locking indices (PLI) computed per unit vs. local theta.",
-                          "lineHeight": 1.7,
-                          "fontFamily": "IBM Plex Serif",
-                          "fontSize": 14,
-                          "fontWeight": "normal"
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "id": "4CVdx",
+                              "type": "ref",
+                              "ref": "NtStv",
+                              "name": "chipAll",
+                              "descendants": {
+                                "8s7lj": {
+                                  "iconFontName": "layers"
+                                },
+                                "2J3eF": {
+                                  "content": "All · 12"
+                                }
+                              }
+                            },
+                            {
+                              "id": "bDew3",
+                              "type": "ref",
+                              "ref": "x6lSS",
+                              "descendants": {
+                                "SkG5T": {
+                                  "content": "Contradictions 3"
+                                }
+                              }
+                            },
+                            {
+                              "id": "eo9RV",
+                              "type": "ref",
+                              "ref": "E6eN2",
+                              "descendants": {
+                                "SkG5T": {
+                                  "content": "Gaps 4"
+                                }
+                              }
+                            },
+                            {
+                              "id": "llqzw",
+                              "type": "ref",
+                              "ref": "N1j31",
+                              "descendants": {
+                                "SkG5T": {
+                                  "content": "Methodology 3"
+                                }
+                              }
+                            },
+                            {
+                              "id": "Mfuxk",
+                              "type": "ref",
+                              "ref": "m5JXK",
+                              "descendants": {
+                                "SkG5T": {
+                                  "content": "Concordance 2"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FXJk8",
+                          "name": "row1",
+                          "width": "fill_container",
+                          "gap": 14,
+                          "children": [
+                            {
+                              "id": "q27fK",
+                              "type": "ref",
+                              "ref": "eHg3G",
+                              "name": "r1c1",
+                              "width": "fill_container"
+                            },
+                            {
+                              "id": "Ljm3m",
+                              "type": "ref",
+                              "ref": "pugTW",
+                              "name": "r1c2",
+                              "width": "fill_container",
+                              "descendants": {
+                                "LRxaO": {
+                                  "content": "Converging use of intracranial EEG + free-recall paradigm"
+                                },
+                                "0g4yH": {
+                                  "content": "Three recent studies (Herweg 2020, Staresina 2023) adopt the same 132-microwire CA1–CA3 setup used here, hinting at a methodological standard."
+                                },
+                                "xoN3C": {
+                                  "content": "5 papers"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "K83i8",
+                          "name": "row2",
+                          "width": "fill_container",
+                          "gap": 14,
+                          "children": [
+                            {
+                              "id": "ooVt3",
+                              "type": "ref",
+                              "ref": "MLF48",
+                              "name": "r2c1",
+                              "width": "fill_container",
+                              "descendants": {
+                                "WrcZP": {
+                                  "id": "OWnNs",
+                                  "type": "ref",
+                                  "ref": "XfLAK",
+                                  "name": "r2c1conf"
+                                },
+                                "LRxaO": {
+                                  "content": "No replication in non-epileptic human cohorts"
+                                },
+                                "0g4yH": {
+                                  "content": "All 17 subjects are drug-resistant epilepsy patients. Effect of disease on CA1 network dynamics is unassessed — external validity remains an open question."
+                                },
+                                "xoN3C": {
+                                  "content": "0 papers · open gap"
+                                }
+                              }
+                            },
+                            {
+                              "id": "IHPel",
+                              "type": "ref",
+                              "ref": "rJUo6",
+                              "name": "r2c2",
+                              "width": "fill_container",
+                              "descendants": {
+                                "LRxaO": {
+                                  "content": "Anesthesia reversal aligns with Buzsáki's causal framework"
+                                },
+                                "0g4yH": {
+                                  "content": "Effect reversal under propofol replicates findings in rodent work (Buzsáki 2019) where theta suppression breaks phase-coded recall."
+                                },
+                                "xoN3C": {
+                                  "content": "4 papers"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "kqTHk",
+                          "name": "row3",
+                          "width": "fill_container",
+                          "gap": 14,
+                          "children": [
+                            {
+                              "id": "gW9XR",
+                              "type": "ref",
+                              "ref": "VUvNg",
+                              "width": "fill_container",
+                              "name": "r3c1"
+                            },
+                            {
+                              "id": "nznPV",
+                              "type": "ref",
+                              "ref": "VUvNg",
+                              "width": "fill_container",
+                              "name": "r3c2"
+                            }
+                          ]
                         }
                       ]
                     }
@@ -11241,6 +11275,819 @@
                       "width": "fill_container",
                       "height": "fill_container",
                       "name": "chatA"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "G6Oyr",
+      "x": 8760,
+      "y": 1116,
+      "name": "PaperDetailPage / Connections / Dark",
+      "theme": {
+        "Mode": "Dark"
+      },
+      "clip": true,
+      "width": 1440,
+      "height": 900,
+      "fill": "$--background",
+      "layout": "none",
+      "children": [
+        {
+          "id": "Vkyeh",
+          "type": "ref",
+          "ref": "YHowe",
+          "x": 0,
+          "y": 0,
+          "height": 900
+        },
+        {
+          "type": "frame",
+          "id": "H0UVw",
+          "layoutPosition": "absolute",
+          "x": 64,
+          "y": 0,
+          "name": "contentB",
+          "width": 1376,
+          "height": 900,
+          "fill": "$--background",
+          "layout": "vertical",
+          "children": [
+            {
+              "id": "DY5jw",
+              "type": "ref",
+              "ref": "mXXAf",
+              "width": "fill_container"
+            },
+            {
+              "type": "frame",
+              "id": "DaK9n",
+              "name": "workA",
+              "width": "fill_container",
+              "height": "fill_container",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "S35V5",
+                  "name": "leftA",
+                  "width": 826,
+                  "height": "fill_container",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": {
+                      "right": 1
+                    },
+                    "fill": "$--border"
+                  },
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "id": "IO693",
+                      "type": "ref",
+                      "ref": "nLZDl",
+                      "width": "fill_container",
+                      "descendants": {
+                        "PTvvV": {
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 0,
+                            "fill": "$--border"
+                          }
+                        },
+                        "T6k5b": {
+                          "fill": "$--muted-foreground"
+                        },
+                        "aZtm1": {
+                          "fill": "$--muted-foreground",
+                          "fontWeight": "500"
+                        },
+                        "lOiAt": {
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 2
+                            },
+                            "fill": "$--primary"
+                          }
+                        },
+                        "9iJDq": {
+                          "fill": "$--primary"
+                        },
+                        "AjmLe": {
+                          "fill": "$--primary",
+                          "fontWeight": "600"
+                        }
+                      }
+                    },
+                    {
+                      "id": "9wf6j",
+                      "type": "ref",
+                      "ref": "lq0h6",
+                      "width": "fill_container"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jKzD3",
+                      "name": "cnScroll",
+                      "clip": true,
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "padding": [
+                        20,
+                        24
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "20LLZ",
+                          "name": "cnHdr",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "OoXUQ",
+                              "name": "cnHdrL",
+                              "gap": 10,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nnnyc",
+                                  "fill": "$--foreground",
+                                  "content": "Connections",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Oo1ow",
+                                  "fill": "$--muted-foreground",
+                                  "content": "4 connected papers · depth 1",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "q1Vhx",
+                              "name": "cnDepth",
+                              "fill": "$--muted",
+                              "cornerRadius": 8,
+                              "padding": 2,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "E3FRm",
+                                  "name": "d1",
+                                  "fill": "$--card",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    4,
+                                    12
+                                  ],
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "40s1r",
+                                      "fill": "$--foreground",
+                                      "content": "1",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "w7CSO",
+                                  "name": "d2",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    4,
+                                    12
+                                  ],
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "IgmRX",
+                                      "fill": "$--muted-foreground",
+                                      "content": "2",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "yXHWO",
+                                  "name": "d3",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    4,
+                                    12
+                                  ],
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "4D3GH",
+                                      "fill": "$--muted-foreground",
+                                      "content": "3",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "COlr0",
+                          "name": "cnGraph",
+                          "width": "fill_container",
+                          "height": 360,
+                          "fill": "$--card",
+                          "cornerRadius": 8,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "$--border"
+                          },
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "line",
+                              "id": "VPrm3",
+                              "x": 378,
+                              "y": 70,
+                              "name": "edgeTop",
+                              "width": 0,
+                              "height": 110,
+                              "stroke": {
+                                "align": "center",
+                                "thickness": 2,
+                                "fill": "$--relation-concordance"
+                              }
+                            },
+                            {
+                              "type": "line",
+                              "id": "1UFmh",
+                              "x": 378,
+                              "y": 178,
+                              "name": "edgeRight",
+                              "width": 200,
+                              "height": 0,
+                              "stroke": {
+                                "align": "center",
+                                "thickness": 2,
+                                "fill": "$--relation-contradiction"
+                              }
+                            },
+                            {
+                              "type": "line",
+                              "id": "lZYoa",
+                              "x": 378,
+                              "y": 180,
+                              "name": "edgeBot",
+                              "width": 0,
+                              "height": 110,
+                              "stroke": {
+                                "align": "center",
+                                "thickness": 2,
+                                "fill": "$--relation-methodology"
+                              }
+                            },
+                            {
+                              "type": "line",
+                              "id": "NO9nR",
+                              "x": 180,
+                              "y": 178,
+                              "name": "edgeLeft",
+                              "width": 200,
+                              "height": 0,
+                              "stroke": {
+                                "align": "center",
+                                "thickness": 2,
+                                "fill": "$--relation-extends"
+                              }
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ag6Db",
+                              "x": 330,
+                              "y": 150,
+                              "name": "egoCenter",
+                              "width": 100,
+                              "height": 68,
+                              "layout": "vertical",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "471QE",
+                                  "name": "centerCirc",
+                                  "width": 40,
+                                  "height": 40,
+                                  "fill": "$--primary",
+                                  "cornerRadius": 9999,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon_font",
+                                      "id": "6qpWm",
+                                      "width": 18,
+                                      "height": 18,
+                                      "iconFontName": "book-open",
+                                      "iconFontFamily": "lucide",
+                                      "fill": "$--primary-foreground"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QacpV",
+                                  "fill": "$--primary",
+                                  "content": "This paper",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "6Kt9o",
+                              "x": 338,
+                              "y": 20,
+                              "name": "nTop",
+                              "width": 80,
+                              "height": 60,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "TnJbU",
+                                  "name": "nTopCirc",
+                                  "width": 30,
+                                  "height": 30,
+                                  "fill": "$--tag-sub-domain-bg",
+                                  "cornerRadius": 9999,
+                                  "stroke": {
+                                    "thickness": 1.5,
+                                    "fill": "$--tag-sub-domain"
+                                  },
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "0fEVo",
+                                      "fill": "$--tag-sub-domain",
+                                      "content": "HS",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "sF1uh",
+                                  "fill": "$--foreground",
+                                  "content": "Herweg 2020",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "rnALK",
+                              "x": 538,
+                              "y": 158,
+                              "name": "nRight",
+                              "width": 80,
+                              "height": 60,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EWC6j",
+                                  "name": "nRightCirc",
+                                  "width": 30,
+                                  "height": 30,
+                                  "fill": "$--tag-pathology-bg",
+                                  "cornerRadius": 9999,
+                                  "stroke": {
+                                    "thickness": 1.5,
+                                    "fill": "$--tag-pathology"
+                                  },
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "RDg8y",
+                                      "fill": "$--tag-pathology",
+                                      "content": "YM",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ArklG",
+                                  "fill": "$--foreground",
+                                  "content": "Yamamoto 2014",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "EmMQV",
+                              "x": 338,
+                              "y": 270,
+                              "name": "nBot",
+                              "width": 80,
+                              "height": 60,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "YAMHA",
+                                  "name": "nBotCirc",
+                                  "width": 30,
+                                  "height": 30,
+                                  "fill": "$--tag-technique-bg",
+                                  "cornerRadius": 9999,
+                                  "stroke": {
+                                    "thickness": 1.5,
+                                    "fill": "$--tag-technique"
+                                  },
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "KXjK2",
+                                      "fill": "$--tag-technique",
+                                      "content": "SB",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "5srHZ",
+                                  "fill": "$--foreground",
+                                  "content": "Staresina 2023",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "fhmgk",
+                              "x": 140,
+                              "y": 158,
+                              "name": "nLeft",
+                              "width": 80,
+                              "height": 60,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "eee4s",
+                                  "name": "nLeftCirc",
+                                  "width": 30,
+                                  "height": 30,
+                                  "fill": "$--tag-topic-bg",
+                                  "cornerRadius": 9999,
+                                  "stroke": {
+                                    "thickness": 1.5,
+                                    "fill": "$--tag-topic"
+                                  },
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "etZ6L",
+                                      "fill": "$--tag-topic",
+                                      "content": "BD",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Fym1W",
+                                  "fill": "$--foreground",
+                                  "content": "Dragoi 2006",
+                                  "lineHeight": 1.3,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Os777",
+                          "fill": "$--foreground",
+                          "content": "Related papers · 4",
+                          "lineHeight": 1.4,
+                          "fontFamily": "IBM Plex Sans",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "YemTt",
+                          "name": "cnList",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "uO0uO",
+                              "name": "rp1",
+                              "width": "fill_container",
+                              "fill": "$--card",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "Hr7ry",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "file-text",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "aLL9O",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Herweg 2020 · Concurrent intracranial EEG in human CA1",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QcAE8",
+                                  "fill": "$--relation-concordance",
+                                  "content": "concordance · strong",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "AzAFB",
+                              "name": "rp2",
+                              "width": "fill_container",
+                              "fill": "$--card",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "tfigW",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "file-text",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "EOHsE",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Yamamoto 2014 · Stable sequence coding under disrupted theta",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "1YFoF",
+                                  "fill": "$--relation-contradiction",
+                                  "content": "contradiction · strong",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Z740g",
+                              "name": "rp3",
+                              "width": "fill_container",
+                              "fill": "$--card",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "Phhis",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "file-text",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Mq6EH",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Staresina 2023 · 132-microwire CA1–CA3 setup standard",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "6SCuO",
+                                  "fill": "$--relation-methodology",
+                                  "content": "methodology · moderate",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "rHBE2",
+                              "name": "rp4",
+                              "width": "fill_container",
+                              "fill": "$--card",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "$--border"
+                              },
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon_font",
+                                  "id": "V1dEu",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "file-text",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--muted-foreground"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "tpl0F",
+                                  "fill": "$--foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Dragoi & Buzsáki 2006 · Sequence coding without theta",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 13,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "TFHa5",
+                                  "fill": "$--relation-extends",
+                                  "content": "extends · moderate",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "IBM Plex Sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "fkm6U",
+                  "name": "rightA",
+                  "width": 550,
+                  "height": "fill_container",
+                  "fill": "$--background",
+                  "layout": "vertical",
+                  "padding": 16,
+                  "children": [
+                    {
+                      "id": "lYoJL",
+                      "type": "ref",
+                      "ref": "qIAZ8",
+                      "width": "fill_container",
+                      "height": "fill_container"
                     }
                   ]
                 }

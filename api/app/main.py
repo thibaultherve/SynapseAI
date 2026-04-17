@@ -8,8 +8,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.responses import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,33 @@ async def _startup_db_probe() -> None:
     await asyncio.gather(_probe(), _probe(), _probe())
 
 
+async def _startup_check_pgvector_index() -> None:
+    # Warn (never fail) if the HNSW index is missing. Similarity search
+    # falls back to a seq scan of paper_embedding, which is functional
+    # but slow — operators should run `alembic upgrade head`.
+    try:
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text(
+                    "SELECT 1 FROM pg_indexes "
+                    "WHERE schemaname = 'public' "
+                    "AND tablename = 'paper_embedding' "
+                    "AND indexname = 'idx_embeddings_vec'"
+                )
+            )
+            if result.scalar() is None:
+                logger.warning(
+                    "pgvector_hnsw_index_missing",
+                    extra={
+                        "table": "paper_embedding",
+                        "expected_index": "idx_embeddings_vec",
+                        "remediation": "alembic upgrade head",
+                    },
+                )
+    except Exception:
+        logger.exception("pgvector_hnsw_index_check_failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _require_single_worker()
@@ -67,6 +94,7 @@ async def lifespan(app: FastAPI):
 
     try:
         await _startup_db_probe()
+        await _startup_check_pgvector_index()
         await load_embedding_model()
         insight_debouncer.start()
         logger.info("lifespan_started")
@@ -112,7 +140,45 @@ app.add_middleware(RequestIdMiddleware)
 from app.ratelimit import limiter  # noqa: E402
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def _rate_limit_handler(
+    request: Request, exc: RateLimitExceeded
+) -> Response:
+    # slowapi's default handler does not emit Retry-After unless
+    # headers_enabled=True on the Limiter — and that flag breaks endpoints
+    # that return Pydantic objects. So we emit Retry-After + X-RateLimit-*
+    # ourselves, deriving the window from request.state.view_rate_limit.
+    retry_after = 60
+    limit_amount: str | None = None
+    try:
+        view_limit = getattr(request.state, "view_rate_limit", None)
+        if view_limit is not None:
+            limit_item = view_limit[0]
+            retry_after = int(limit_item.get_expiry())
+            limit_amount = str(limit_item.amount)
+    except Exception:
+        logger.exception("rate_limit_header_derivation_failed")
+
+    headers: dict[str, str] = {"Retry-After": str(retry_after)}
+    if limit_amount is not None:
+        headers["X-RateLimit-Limit"] = limit_amount
+        headers["X-RateLimit-Remaining"] = "0"
+        headers["X-RateLimit-Reset"] = str(retry_after)
+
+    return JSONResponse(
+        status_code=429,
+        headers=headers,
+        content={
+            "error": {
+                "code": "RATE_LIMITED",
+                "message": f"Rate limit exceeded: {exc.detail}",
+            }
+        },
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 
 @app.exception_handler(AppError)
