@@ -4,9 +4,12 @@ import logging
 
 from app.config import insight_settings
 from app.core.database import async_session
+from app.insights.exceptions import InsightRefreshBusyError
 from app.insights.service import generate_insights
 
 logger = logging.getLogger(__name__)
+
+_ACQUIRE_TIMEOUT = 0.1
 
 
 class InsightDebouncer:
@@ -81,23 +84,31 @@ class InsightDebouncer:
     async def run_now(self) -> dict:
         """Execute a generation synchronously (used by POST /insights/refresh).
 
-        Caller MUST check `is_locked()` first to return 409. This method
-        acquires the lock and returns the result dict from `generate_insights`.
-        Updates `_last_hash` on success. Wraps generation in an upper-bound
-        timeout so a hung Claude CLI subprocess can't pin the lock forever.
+        Attempts to acquire the lock with a short timeout; raises
+        `InsightRefreshBusyError` (409) if another generation holds it. This
+        replaces the previous TOCTOU pattern where the caller had to check
+        `is_locked()` first. Wraps generation in an upper-bound timeout so a
+        hung Claude CLI subprocess can't pin the lock forever.
         """
         timeout = (
             insight_settings.INSIGHT_CLAUDE_TIMEOUT
             + insight_settings.INSIGHT_GENERATION_TIMEOUT_MARGIN
         )
-        async with self._lock, async_session() as db:
-            result = await asyncio.wait_for(
-                generate_insights(db, last_hash=self._last_hash),
-                timeout=timeout,
-            )
-        if result.get("hash"):
-            self._last_hash = result["hash"]
-        return result
+        try:
+            await asyncio.wait_for(self._lock.acquire(), timeout=_ACQUIRE_TIMEOUT)
+        except TimeoutError as exc:
+            raise InsightRefreshBusyError() from exc
+        try:
+            async with async_session() as db:
+                result = await asyncio.wait_for(
+                    generate_insights(db, last_hash=self._last_hash),
+                    timeout=timeout,
+                )
+            if result.get("hash"):
+                self._last_hash = result["hash"]
+            return result
+        finally:
+            self._lock.release()
 
     # -----------------------------------------------------------------
     # Internal

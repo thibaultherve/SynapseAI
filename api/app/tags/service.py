@@ -90,9 +90,15 @@ async def merge_tags(
 ) -> Tag:
     """Merge source tag into target: move associations, delete source.
 
-    Uses FOR UPDATE to prevent concurrent modification and
-    ON CONFLICT DO NOTHING for duplicate paper_tag rows.
+    Runs at SERIALIZABLE isolation so concurrent merges that touch the same
+    source tag can't interleave the INSERT and DELETE into an inconsistent
+    paper_tag set. FOR UPDATE still pins the two tag rows, and the INSERT
+    uses ON CONFLICT DO NOTHING to tolerate duplicates from concurrent
+    tag-association writes on other paths.
     """
+    # Must be set before any other statement in the transaction.
+    await db.execute(text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
+
     # Lock both tags
     result = await db.execute(
         select(Tag)

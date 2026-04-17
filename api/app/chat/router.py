@@ -1,6 +1,10 @@
 """Chat router: SSE streaming endpoints + session/message listing."""
 
+import asyncio
+import contextlib
 import json
+import logging
+import uuid
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -25,6 +29,10 @@ from app.papers.models import Paper
 from app.ratelimit import limiter
 
 router = APIRouter(prefix="/api", tags=["chat"])
+
+logger = logging.getLogger(__name__)
+
+CHAT_SSE_KEEPALIVE_INTERVAL = 15.0
 
 
 # Chat-only SSE capacity (separate from the processing capacity dict).
@@ -57,8 +65,38 @@ def _release_slot(key: str) -> None:
         _chat_streams.pop(key, None)
 
 
-def _sse_pack(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+def _sse_pack(event: str, data: dict, event_id: str | None = None) -> str:
+    id_line = f"id: {event_id}\n" if event_id else ""
+    return f"{id_line}event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+async def _iter_with_keepalive(agen, request: Request):
+    """Yield raw SSE frames from `agen`, emitting a keepalive ping every
+    CHAT_SSE_KEEPALIVE_INTERVAL seconds of silence. Stops if the client
+    disconnects. Each data event carries a fresh UUID `id:` so clients can
+    track position (replay is not supported; events are not persisted)."""
+    aiter = agen.__aiter__()
+    try:
+        while True:
+            try:
+                evt = await asyncio.wait_for(
+                    aiter.__anext__(), timeout=CHAT_SSE_KEEPALIVE_INTERVAL
+                )
+            except StopAsyncIteration:
+                return
+            except TimeoutError:
+                if await request.is_disconnected():
+                    return
+                yield ": ping\n\n"
+                continue
+            if await request.is_disconnected():
+                return
+            yield _sse_pack("chat", evt, event_id=uuid.uuid4().hex)
+    finally:
+        aclose = getattr(agen, "aclose", None)
+        if aclose is not None:
+            with contextlib.suppress(Exception):
+                await aclose()
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +128,12 @@ async def chat_paper(
     paper_id = paper.id
     user_message = body.content
     session_id = body.session_id
+    last_event_id = request.headers.get("last-event-id")
+    if last_event_id:
+        logger.info(
+            "chat_sse_last_event_id_received",
+            extra={"paper_id": str(paper_id), "last_event_id": last_event_id[:64]},
+        )
 
     async def event_gen():
         try:
@@ -99,20 +143,23 @@ async def chat_paper(
                     yield _sse_pack(
                         "chat",
                         {"type": "error", "message": "Paper disappeared mid-stream"},
+                        event_id=uuid.uuid4().hex,
                     )
                     return
 
                 try:
-                    async for evt in service.chat_with_paper(
-                        stream_db, stream_paper, user_message, session_id
+                    async for frame in _iter_with_keepalive(
+                        service.chat_with_paper(
+                            stream_db, stream_paper, user_message, session_id
+                        ),
+                        request,
                     ):
-                        if await request.is_disconnected():
-                            return
-                        yield _sse_pack("chat", evt)
+                        yield frame
                 except AppError as exc:
                     yield _sse_pack(
                         "chat",
                         {"type": "error", "code": exc.code, "message": exc.message},
+                        event_id=uuid.uuid4().hex,
                     )
         finally:
             _release_slot(key)
@@ -149,21 +196,27 @@ async def chat_corpus(
 
     user_message = body.content
     session_id = body.session_id
+    last_event_id = request.headers.get("last-event-id")
+    if last_event_id:
+        logger.info(
+            "chat_sse_last_event_id_received",
+            extra={"scope": "corpus", "last_event_id": last_event_id[:64]},
+        )
 
     async def event_gen():
         try:
             async with async_session() as stream_db:
                 try:
-                    async for evt in service.chat_with_corpus(
-                        stream_db, user_message, session_id
+                    async for frame in _iter_with_keepalive(
+                        service.chat_with_corpus(stream_db, user_message, session_id),
+                        request,
                     ):
-                        if await request.is_disconnected():
-                            return
-                        yield _sse_pack("chat", evt)
+                        yield frame
                 except AppError as exc:
                     yield _sse_pack(
                         "chat",
                         {"type": "error", "code": exc.code, "message": exc.message},
+                        event_id=uuid.uuid4().hex,
                     )
         finally:
             _release_slot(_CORPUS_KEY)

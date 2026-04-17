@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -172,6 +173,21 @@ async def cleanup_orphan_insights(db: AsyncSession) -> int:
 # Dedup + persist
 # ---------------------------------------------------------------------------
 
+
+def _find_best_match(
+    existing_by_type: list[Insight], new_title_normalized: str
+) -> tuple[Insight | None, float]:
+    best_match: Insight | None = None
+    best_ratio = 0.0
+    for existing in existing_by_type:
+        existing_norm = existing.title_normalized or _normalize_title(existing.title)
+        ratio = SequenceMatcher(None, existing_norm, new_title_normalized).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_match = existing
+    return best_match, best_ratio
+
+
 async def _dedup_and_persist(
     db: AsyncSession,
     new: InsightOutput,
@@ -184,14 +200,11 @@ async def _dedup_and_persist(
     new_title_normalized = _normalize_title(new.title)
     threshold = insight_settings.INSIGHT_DEDUP_THRESHOLD
 
-    best_match: Insight | None = None
-    best_ratio = 0.0
-    for existing in existing_by_type:
-        existing_norm = existing.title_normalized or _normalize_title(existing.title)
-        ratio = SequenceMatcher(None, existing_norm, new_title_normalized).ratio()
-        if ratio > best_ratio:
-            best_ratio = ratio
-            best_match = existing
+    # Off-loop the whole batch: SequenceMatcher is CPU-bound (O(N*M)) and
+    # blocks the event loop when existing_by_type grows.
+    best_match, best_ratio = await asyncio.to_thread(
+        _find_best_match, existing_by_type, new_title_normalized
+    )
 
     new_paper_ids: list[uuid.UUID] = []
     for pid in new.supporting_papers:

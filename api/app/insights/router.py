@@ -7,7 +7,6 @@ from app.core.schemas import ErrorResponse
 from app.insights import service
 from app.insights.debouncer import insight_debouncer
 from app.insights.dependencies import get_insight_filters, get_insight_or_404
-from app.insights.exceptions import InsightRefreshBusyError
 from app.insights.models import Insight
 from app.insights.schemas import (
     InsightFilters,
@@ -100,9 +99,6 @@ async def refresh_insights(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    if insight_debouncer.is_locked():
-        raise InsightRefreshBusyError()
-
     result = await insight_debouncer.run_now()
     # Lazy cleanup of orphan insights (spec §3.3).
     await service.cleanup_orphan_insights(db)

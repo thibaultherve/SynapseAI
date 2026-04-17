@@ -47,7 +47,9 @@ TERMINAL_STATUSES = {
         503: {"model": ErrorResponse, "description": "Server at SSE capacity"},
     },
 )
-async def paper_status_stream(paper: Paper = Depends(get_paper_or_404)):
+async def paper_status_stream(
+    request: Request, paper: Paper = Depends(get_paper_or_404)
+):
     from app.core.exceptions import AppError
 
     paper_id = paper.id
@@ -59,16 +61,26 @@ async def paper_status_stream(paper: Paper = Depends(get_paper_or_404)):
     if _sse_connections[key] >= MAX_SSE_PER_PAPER:
         raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many listeners for this paper", 429)
 
+    # Resume from the client's last-seen ProcessingEvent id if provided.
+    resume_header = request.headers.get("last-event-id")
+    try:
+        initial_last_event_id = max(0, int(resume_header)) if resume_header else 0
+    except ValueError:
+        initial_last_event_id = 0
+
     async def event_generator():
         _sse_connections[key] += 1
         try:
             start = asyncio.get_running_loop().time()
-            last_event_id = 0
+            last_event_id = initial_last_event_id
 
             while True:
                 elapsed = asyncio.get_running_loop().time() - start
                 if elapsed > SSE_MAX_DURATION:
                     yield "event: timeout\ndata: {}\n\n"
+                    return
+
+                if await request.is_disconnected():
                     return
 
                 # Fetch new events from DB
@@ -82,12 +94,14 @@ async def paper_status_stream(paper: Paper = Depends(get_paper_or_404)):
                     events = result.scalars().all()
 
                     for event in events:
+                        if await request.is_disconnected():
+                            return
                         data = json.dumps({
                             "step": event.step,
                             "detail": event.detail,
                             "timestamp": event.created_at.isoformat(),
                         })
-                        yield f"data: {data}\n\n"
+                        yield f"id: {event.id}\ndata: {data}\n\n"
                         last_event_id = event.id
 
                     # Check terminal state via computed status from steps
