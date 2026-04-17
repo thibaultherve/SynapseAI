@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, func
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base import Base
@@ -20,7 +20,10 @@ class ChatSession(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     paper_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("paper.id", ondelete="CASCADE"), nullable=True
     )
@@ -38,7 +41,7 @@ class ChatMessage(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    session_id: Mapped[int] = mapped_column(
+    session_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("chat_session.id", ondelete="CASCADE"),
         index=True,
     )

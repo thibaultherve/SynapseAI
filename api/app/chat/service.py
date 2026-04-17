@@ -35,7 +35,7 @@ async def get_or_create_session(
     *,
     scope: str,
     paper_id: uuid.UUID | None,
-    session_id: int | None,
+    session_id: uuid.UUID | None,
 ) -> ChatSession:
     """Return an existing session (validating scope/paper match) or create one."""
     if session_id is not None:
@@ -53,7 +53,7 @@ async def get_or_create_session(
     return session
 
 
-async def count_session_messages(db: AsyncSession, session_id: int) -> int:
+async def count_session_messages(db: AsyncSession, session_id: uuid.UUID) -> int:
     result = await db.execute(
         select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session_id)
     )
@@ -61,7 +61,7 @@ async def count_session_messages(db: AsyncSession, session_id: int) -> int:
 
 
 async def get_recent_history(
-    db: AsyncSession, session_id: int, limit: int
+    db: AsyncSession, session_id: uuid.UUID, limit: int
 ) -> list[ChatMessage]:
     """Return the last ``limit`` messages for a session, oldest-first."""
     result = await db.execute(
@@ -90,7 +90,7 @@ async def list_sessions_for_paper(
 
 
 async def list_messages_paginated(
-    db: AsyncSession, session_id: int, limit: int, offset: int
+    db: AsyncSession, session_id: uuid.UUID, limit: int, offset: int
 ) -> list[ChatMessage]:
     result = await db.execute(
         select(ChatMessage)
@@ -224,7 +224,7 @@ async def chat_with_paper(
     db: AsyncSession,
     paper: Paper,
     user_message: str,
-    session_id: int | None,
+    session_id: uuid.UUID | None,
 ) -> AsyncGenerator[dict, None]:
     """Orchestrate a paper-scope chat turn. Yields SSE-ready event dicts."""
     async for event in _chat_stream(
@@ -241,7 +241,7 @@ async def chat_with_paper(
 async def chat_with_corpus(
     db: AsyncSession,
     user_message: str,
-    session_id: int | None,
+    session_id: uuid.UUID | None,
 ) -> AsyncGenerator[dict, None]:
     """Orchestrate a corpus-scope chat turn."""
     async for event in _chat_stream(
@@ -262,7 +262,7 @@ async def _chat_stream(
     paper_id: uuid.UUID | None,
     paper: Paper | None,
     user_message: str,
-    session_id: int | None,
+    session_id: uuid.UUID | None,
 ) -> AsyncGenerator[dict, None]:
     session = await get_or_create_session(
         db, scope=scope, paper_id=paper_id, session_id=session_id
@@ -298,8 +298,9 @@ async def _chat_stream(
     await db.refresh(user_row)
     await db.commit()
 
-    # Session metadata event for the client.
-    yield {"type": "session", "session_id": session.id}
+    # Session metadata event for the client. UUID serialized as string for
+    # JSON compatibility in the SSE envelope.
+    yield {"type": "session", "session_id": str(session.id)}
 
     full_text_parts: list[str] = []
     errored = False

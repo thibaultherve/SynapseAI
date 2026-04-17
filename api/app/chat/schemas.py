@@ -10,19 +10,19 @@ from app.core.schemas import AppBaseModel
 
 class ChatMessageCreate(AppBaseModel):
     content: str = Field(..., min_length=1, max_length=chat_settings.CHAT_MAX_MESSAGE_LENGTH)
-    session_id: int | None = None
+    session_id: uuid.UUID | None = None
 
 
 class ChatMessageResponse(AppBaseModel):
     id: int
-    session_id: int
+    session_id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
     created_at: datetime
 
 
 class SessionResponse(AppBaseModel):
-    id: int
+    id: uuid.UUID
     paper_id: uuid.UUID | None = None
     scope: Literal["paper", "corpus"]
     created_at: datetime

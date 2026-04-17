@@ -170,7 +170,7 @@ async def test_chat_persists_user_and_assistant_messages(
         events = await _read_sse(response)
 
     session_event = next(e for e in events if e.get("type") == "session")
-    session_id = session_event["session_id"]
+    session_id = uuid.UUID(session_event["session_id"])
 
     # A new session was created, and both user + assistant messages persisted.
     from sqlalchemy import select
@@ -216,7 +216,7 @@ async def test_list_sessions_and_messages_pagination(
     assert resp.status_code == 200
     sessions = resp.json()
     assert len(sessions) == 1
-    assert sessions[0]["id"] == session.id
+    assert sessions[0]["id"] == str(session.id)
     assert sessions[0]["message_count"] == 5
 
     resp = await client.get(

@@ -1,9 +1,11 @@
+import uuid
+
 from app.chat.constants import ErrorCode
 from app.core.exceptions import AppError, ConflictError, NotFoundError
 
 
 class SessionNotFoundError(NotFoundError):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: uuid.UUID):
         super().__init__(
             ErrorCode.SESSION_NOT_FOUND, f"Chat session {session_id} not found"
         )
