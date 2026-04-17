@@ -17,10 +17,12 @@ async_session = async_sessionmaker(
 
 
 async def get_db():
+    # Convention: services own commits, routes don't. We only roll back
+    # here so a raised exception never leaves a half-written transaction
+    # behind; successful handlers must commit explicitly in a service.
     async with async_session() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

@@ -16,7 +16,7 @@ from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries, generate_tags
 from app.processing.crossref_service import run_crossref_step
 from app.processing.embedding_service import encode_batch
-from app.processing.events import notify_paper_update
+from app.processing.events import cleanup_paper_event, notify_paper_update
 from app.processing.models import PaperEmbedding, PaperStep, ProcessingEvent
 from app.tags.models import Tag
 from app.tags.service import link_tags_to_paper, resolve_tags
@@ -98,6 +98,17 @@ def can_retry(paper: Paper, step_name: str) -> tuple[bool, str]:
         return False, f"Prerequisites not met for retrying '{step_name}'"
 
     return True, ""
+
+
+async def reset_step_for_retry(db, step: PaperStep) -> PaperStep:
+    """Reset a step to pending and commit so process_paper will pick it up."""
+    step.status = StepStatus.PENDING.value
+    step.error_message = None
+    step.started_at = None
+    step.completed_at = None
+    await db.commit()
+    await db.refresh(step)
+    return step
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +327,7 @@ async def process_paper(paper_id: uuid.UUID):
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)
             await db.commit()
             await _log_event(db, paper_id, "complete", "Processing complete")
+            cleanup_paper_event(str(paper_id))
 
         except Exception as e:
             logger.exception("Processing failed for paper %s", paper_id)
@@ -337,3 +349,4 @@ async def process_paper(paper_id: uuid.UUID):
                         "Processing error for paper %s before any step started: %s",
                         paper_id, e,
                     )
+            cleanup_paper_event(str(paper_id))

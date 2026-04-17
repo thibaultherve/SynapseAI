@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
         load_embedding_model,
         unload_embedding_model,
     )
-    from app.processing.task_registry import drain_tasks
+    from app.processing.task_registry import drain_tasks, mark_shutting_down
 
     try:
         await _startup_db_probe()
@@ -73,6 +73,9 @@ async def lifespan(app: FastAPI):
 
         yield
 
+        # Flip the shutdown flag BEFORE draining so any late arrival is
+        # refused instead of racing against cancellation mid-await.
+        mark_shutting_down()
         await drain_tasks()
         await insight_debouncer.stop()
         await unload_embedding_model()

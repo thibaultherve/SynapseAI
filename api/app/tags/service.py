@@ -57,6 +57,7 @@ async def create_tag(db: AsyncSession, data: TagCreate) -> Tag:
     db.add(tag)
     await db.flush()
     await db.refresh(tag)
+    await db.commit()
     return tag
 
 
@@ -73,12 +74,15 @@ async def rename_tag(db: AsyncSession, tag: Tag, data: TagUpdate) -> Tag:
         if existing.scalar_one_or_none():
             raise DuplicateTagError()
         tag.name = data.name
+    await db.commit()
+    await db.refresh(tag)
     return tag
 
 
 async def delete_tag(db: AsyncSession, tag: Tag) -> None:
     """Delete a tag (CASCADE removes paper_tag rows)."""
     await db.delete(tag)
+    await db.commit()
 
 
 async def merge_tags(
@@ -116,6 +120,7 @@ async def merge_tags(
 
     # Delete source tag (CASCADE remaining paper_tags)
     await db.execute(delete(Tag).where(Tag.id == source_id))
+    await db.commit()
     await db.refresh(target)
     return target
 

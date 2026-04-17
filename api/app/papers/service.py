@@ -45,6 +45,7 @@ async def create_paper_from_pdf(
     await _create_initial_steps(db, paper_id)
     await db.flush()
     await db.refresh(paper, ["steps", "tags"])
+    await db.commit()
 
     # Import here to avoid circular imports
     from app.processing.service import process_paper
@@ -69,6 +70,7 @@ async def create_paper_from_url(url: str, db: AsyncSession) -> Paper:
     await _create_initial_steps(db, paper_id)
     await db.flush()
     await db.refresh(paper, ["steps", "tags"])
+    await db.commit()
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing
@@ -98,6 +100,7 @@ async def create_paper_from_doi(doi: str, db: AsyncSession) -> Paper:
     await _create_initial_steps(db, paper_id)
     await db.flush()
     await db.refresh(paper, ["steps", "tags"])
+    await db.commit()
 
     from app.processing.service import process_paper
     from app.processing.task_registry import launch_processing
@@ -195,12 +198,15 @@ async def list_papers(
 
 async def delete_paper(paper: Paper, db: AsyncSession) -> None:
     await db.delete(paper)
+    await db.commit()
 
 
 async def update_paper(paper: Paper, update: PaperUpdate, db: AsyncSession) -> Paper:
     update_data = update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(paper, field, value)
+    await db.commit()
+    await db.refresh(paper)
     return paper
 
 

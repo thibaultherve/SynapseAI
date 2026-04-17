@@ -18,7 +18,7 @@ from app.papers.utils import compute_paper_status
 from app.processing.constants import ErrorCode
 from app.processing.events import cleanup_paper_event, wait_for_update
 from app.processing.models import PaperStep, ProcessingEvent
-from app.processing.service import can_retry, process_paper
+from app.processing.service import can_retry, process_paper, reset_step_for_retry
 from app.processing.task_registry import launch_processing
 from app.ratelimit import limiter
 
@@ -178,13 +178,7 @@ async def retry_step(
     if not ok:
         raise ValidationError(ErrorCode.RETRY_PRECONDITION_FAILED, reason)
 
-    # Reset step to pending so process_paper will pick it up
-    step.status = StepStatus.PENDING.value
-    step.error_message = None
-    step.started_at = None
-    step.completed_at = None
-    await db.flush()
-    await db.refresh(step)
+    await reset_step_for_retry(db, step)
 
     launch_processing(process_paper(paper.id))
     return step

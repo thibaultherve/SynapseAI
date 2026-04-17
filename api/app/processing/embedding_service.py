@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 _model = None
 _executor: ThreadPoolExecutor | None = None
+_shutdown_flag = False
+
+
+class EmbeddingShutdownError(RuntimeError):
+    """Raised when encode is called after the embedding service shut down."""
 
 
 def _get_model():
@@ -21,11 +26,12 @@ def _get_model():
 
 async def load_embedding_model() -> None:
     """Load the embedding model at startup. Call from FastAPI lifespan."""
-    global _model, _executor
+    global _model, _executor, _shutdown_flag
 
     if _model is not None:
         return
 
+    _shutdown_flag = False
     start = time.monotonic()
     logger.info("Loading embedding model: %s", embedding_settings.EMBEDDING_MODEL_NAME)
 
@@ -51,15 +57,21 @@ async def load_embedding_model() -> None:
 
 async def unload_embedding_model() -> None:
     """Shutdown executor. Call from lifespan shutdown."""
-    global _model, _executor
+    global _model, _executor, _shutdown_flag
+    _shutdown_flag = True
     if _executor is not None:
-        _executor.shutdown(wait=False)
+        # wait=True blocks the event loop thread until pending encode jobs
+        # return; that's intentional — we'd rather drain than leave tensors
+        # mid-compute and then tear down the interpreter.
+        _executor.shutdown(wait=True)
         _executor = None
     _model = None
 
 
 async def encode_text(text: str) -> list[float]:
     """Encode a single text into a vector."""
+    if _shutdown_flag:
+        raise EmbeddingShutdownError("Embedding service is shutting down")
     model = _get_model()
     loop = asyncio.get_running_loop()
 
@@ -74,6 +86,8 @@ async def encode_batch(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
+    if _shutdown_flag:
+        raise EmbeddingShutdownError("Embedding service is shutting down")
     model = _get_model()
     loop = asyncio.get_running_loop()
     batch_size = embedding_settings.EMBEDDING_BATCH_SIZE
