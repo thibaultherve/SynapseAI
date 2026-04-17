@@ -17,6 +17,16 @@ def mark_shutting_down() -> None:
     _shutting_down = True
 
 
+def is_shutting_down() -> bool:
+    """Return whether shutdown has begun.
+
+    Public read accessor for the module-local flag — callers (e.g.
+    ``papers.service.create_paper_*``) use it to pre-check before
+    starting DB writes that would race against ``drain_tasks``.
+    """
+    return _shutting_down
+
+
 def launch_processing(coro) -> asyncio.Task:
     if _shutting_down:
         # Close the coroutine so asyncio doesn't emit a "coroutine was never

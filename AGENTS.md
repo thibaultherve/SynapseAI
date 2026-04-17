@@ -1,7 +1,8 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **SynapseAI** (2075 symbols, 4759 relationships, 120 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **SynapseAI** (2080 symbols, 4800 relationships, 120 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -35,35 +36,36 @@ This project is indexed by GitNexus as **SynapseAI** (2075 symbols, 4759 relatio
 
 ## Tools Quick Reference
 
-| Tool | When to use | Command |
-|------|-------------|---------|
-| `query` | Find code by concept | `gitnexus_query({query: "auth validation"})` |
-| `context` | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})` |
-| `impact` | Blast radius before editing | `gitnexus_impact({target: "X", direction: "upstream"})` |
-| `detect_changes` | Pre-commit scope check | `gitnexus_detect_changes({scope: "staged"})` |
-| `rename` | Safe multi-file rename | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
-| `cypher` | Custom graph queries | `gitnexus_cypher({query: "MATCH ..."})` |
+| Tool             | When to use                   | Command                                                                 |
+| ---------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `query`          | Find code by concept          | `gitnexus_query({query: "auth validation"})`                            |
+| `context`        | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})`                              |
+| `impact`         | Blast radius before editing   | `gitnexus_impact({target: "X", direction: "upstream"})`                 |
+| `detect_changes` | Pre-commit scope check        | `gitnexus_detect_changes({scope: "staged"})`                            |
+| `rename`         | Safe multi-file rename        | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
+| `cypher`         | Custom graph queries          | `gitnexus_cypher({query: "MATCH ..."})`                                 |
 
 ## Impact Risk Levels
 
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
+| Depth | Meaning                               | Action                |
+| ----- | ------------------------------------- | --------------------- |
+| d=1   | WILL BREAK — direct callers/importers | MUST update these     |
+| d=2   | LIKELY AFFECTED — indirect deps       | Should test           |
+| d=3   | MAY NEED TESTING — transitive         | Test if critical path |
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/SynapseAI/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/SynapseAI/clusters` | All functional areas |
-| `gitnexus://repo/SynapseAI/processes` | All execution flows |
-| `gitnexus://repo/SynapseAI/process/{name}` | Step-by-step execution trace |
+| Resource                                   | Use for                                  |
+| ------------------------------------------ | ---------------------------------------- |
+| `gitnexus://repo/SynapseAI/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/SynapseAI/clusters`       | All functional areas                     |
+| `gitnexus://repo/SynapseAI/processes`      | All execution flows                      |
+| `gitnexus://repo/SynapseAI/process/{name}` | Step-by-step execution trace             |
 
 ## Self-Check Before Finishing
 
 Before completing any code modification task, verify:
+
 1. `gitnexus_impact` was run for all modified symbols
 2. No HIGH/CRITICAL risk warnings were ignored
 3. `gitnexus_detect_changes()` confirms changes match expected scope
@@ -89,14 +91,14 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
 
@@ -128,12 +130,12 @@ Central config lives in `app/core/logging.py`. `app/main.py` calls `configure_lo
 
 ### Redaction (automatic, runs before the formatter)
 
-| Pattern | Replacement |
-|---------|-------------|
-| Email addresses | `<email>` |
-| Base64 runs ≥200 chars | `<b64:N>` (N = matched length) |
-| UUID fence delimiters `<<<…>>>` | `<delim>` |
-| Extras named `extracted_text`, `user_message`, `prompt`, `summary` | `{"sha256": ..., "len": ...}` |
+| Pattern                                                            | Replacement                    |
+| ------------------------------------------------------------------ | ------------------------------ |
+| Email addresses                                                    | `<email>`                      |
+| Base64 runs ≥200 chars                                             | `<b64:N>` (N = matched length) |
+| UUID fence delimiters `<<<…>>>`                                    | `<delim>`                      |
+| Extras named `extracted_text`, `user_message`, `prompt`, `summary` | `{"sha256": ..., "len": ...}`  |
 
 Redaction is a last-line-of-defense against leaking user data into ops logs — **never** rely on it in place of not logging the secret in the first place. If you need a value for debugging, log its `sha256`/`len` fingerprint explicitly.
 
@@ -149,4 +151,4 @@ v1 holds several pieces of state in-process: the `slowapi` limiter counters, `_p
 
 `app/core/ratelimit_key.py::trusted_client_ip` is the `slowapi` `key_func`. Behind a proxy, set `TRUSTED_PROXIES=["10.0.0.0/8", ...]` (JSON list in `.env`) with the proxy's IPs or CIDRs. Leave empty when running without a reverse proxy — that is the safe default ("trust nothing").
 
-The lookup picks the rightmost hop in `X-Forwarded-For` that is *not* in the trusted set; untrusted peers ignore XFF entirely.
+The lookup picks the rightmost hop in `X-Forwarded-For` that is _not_ in the trusted set; untrusted peers ignore XFF entirely.

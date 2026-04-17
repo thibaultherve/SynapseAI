@@ -23,13 +23,13 @@ All AI features run through **Claude CLI** (subprocess), leveraging the fixed-pr
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Backend** | <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" height="20"/> <img src="https://img.shields.io/badge/Python_3.12-3776AB?logo=python&logoColor=white" alt="Python" height="20"/> <img src="https://img.shields.io/badge/SQLAlchemy_2.0-D71F00?logo=sqlalchemy&logoColor=white" alt="SQLAlchemy" height="20"/> <img src="https://img.shields.io/badge/Pydantic_v2-E92063?logo=pydantic&logoColor=white" alt="Pydantic" height="20"/> <img src="https://img.shields.io/badge/Alembic-6BA81E?logoColor=white" alt="Alembic" height="20"/> |
-| **AI** | <img src="https://img.shields.io/badge/Claude_CLI-D97706?logo=anthropic&logoColor=white" alt="Claude" height="20"/> <img src="https://img.shields.io/badge/pdfplumber-333333?logoColor=white" alt="pdfplumber" height="20"/> <img src="https://img.shields.io/badge/trafilatura-333333?logoColor=white" alt="trafilatura" height="20"/> |
-| **Database** | <img src="https://img.shields.io/badge/PostgreSQL_16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" height="20"/> <img src="https://img.shields.io/badge/pgvector-4169E1?logo=postgresql&logoColor=white" alt="pgvector" height="20"/> |
-| **Infrastructure** | <img src="https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white" alt="Docker" height="20"/> <img src="https://img.shields.io/badge/Ruff-D7FF64?logo=ruff&logoColor=black" alt="Ruff" height="20"/> <img src="https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white" alt="pytest" height="20"/> |
-| **Frontend** *(planned)* | <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React" height="20"/> <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" height="20"/> |
+| Layer                    | Technology                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Backend**              | <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" height="20"/> <img src="https://img.shields.io/badge/Python_3.12-3776AB?logo=python&logoColor=white" alt="Python" height="20"/> <img src="https://img.shields.io/badge/SQLAlchemy_2.0-D71F00?logo=sqlalchemy&logoColor=white" alt="SQLAlchemy" height="20"/> <img src="https://img.shields.io/badge/Pydantic_v2-E92063?logo=pydantic&logoColor=white" alt="Pydantic" height="20"/> <img src="https://img.shields.io/badge/Alembic-6BA81E?logoColor=white" alt="Alembic" height="20"/> |
+| **AI**                   | <img src="https://img.shields.io/badge/Claude_CLI-D97706?logo=anthropic&logoColor=white" alt="Claude" height="20"/> <img src="https://img.shields.io/badge/pdfplumber-333333?logoColor=white" alt="pdfplumber" height="20"/> <img src="https://img.shields.io/badge/trafilatura-333333?logoColor=white" alt="trafilatura" height="20"/>                                                                                                                                                                                                                                                 |
+| **Database**             | <img src="https://img.shields.io/badge/PostgreSQL_16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" height="20"/> <img src="https://img.shields.io/badge/pgvector-4169E1?logo=postgresql&logoColor=white" alt="pgvector" height="20"/>                                                                                                                                                                                                                                                                                                                                        |
+| **Infrastructure**       | <img src="https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white" alt="Docker" height="20"/> <img src="https://img.shields.io/badge/Ruff-D7FF64?logo=ruff&logoColor=black" alt="Ruff" height="20"/> <img src="https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white" alt="pytest" height="20"/>                                                                                                                                                                                                                                                |
+| **Frontend** _(planned)_ | <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React" height="20"/> <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" height="20"/>                                                                                                                                                                                                                                                                                                                                                      |
 
 ---
 
@@ -118,17 +118,18 @@ docker-compose exec api pytest -v
 
 ### Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| `api` | 8000 | FastAPI backend (auto-reload in dev) |
-| `db` | 5432 | PostgreSQL 16 + pgvector |
-| `db-test` | 5434 | Isolated test database |
+| Service   | Port | Description                          |
+| --------- | ---- | ------------------------------------ |
+| `api`     | 8000 | FastAPI backend (auto-reload in dev) |
+| `db`      | 5432 | PostgreSQL 16 + pgvector             |
+| `db-test` | 5434 | Isolated test database               |
 
 ---
 
 ## 📡 API Endpoints
 
 ### Papers
+
 ```
 POST   /api/papers/upload          Upload PDF (multipart)
 POST   /api/papers                 Create from URL or DOI
@@ -140,6 +141,7 @@ DELETE /api/papers/:id             Delete (cascade)
 ```
 
 ### Processing
+
 ```
 GET    /api/papers/:id/steps       List processing steps
 POST   /api/papers/:id/retry/:step Retry a failed step
@@ -147,6 +149,7 @@ GET    /api/papers/:id/status      SSE stream (real-time progress)
 ```
 
 ### Tags
+
 ```
 GET    /api/tags                   All tags grouped by category
 GET    /api/tags/:id/papers        Papers with a specific tag
@@ -159,13 +162,13 @@ POST   /api/tags/merge             Merge source → target
 
 ## 🔜 Upcoming Features
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Semantic Search** | Full-text + vector similarity search across the corpus |
-| 💬 **RAG Chat** | Chat with a single paper or the entire library, answers grounded in your research |
-| 🌐 **React Frontend** | SPA with PDF viewer, chat panel, and tag management |
-| 📊 **Insight Engine** | AI-generated research gaps, hypotheses, and trend detection |
-| 🗺️ **Knowledge Graph** | Visual exploration of paper relationships and cross-references |
+| Feature                | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| 🔍 **Semantic Search** | Full-text + vector similarity search across the corpus                            |
+| 💬 **RAG Chat**        | Chat with a single paper or the entire library, answers grounded in your research |
+| 🌐 **React Frontend**  | SPA with PDF viewer, chat panel, and tag management                               |
+| 📊 **Insight Engine**  | AI-generated research gaps, hypotheses, and trend detection                       |
+| 🗺️ **Knowledge Graph** | Visual exploration of paper relationships and cross-references                    |
 
 ---
 
@@ -173,14 +176,14 @@ POST   /api/tags/merge             Merge source → target
 
 SynapseAI is the successor to **NeuroAI**, a Notion-based research assistant built with Claude Code skills and Python scripts. v1 is archived in the [`/v1`](v1/) directory with its own [README](v1/README.md).
 
-| | **v1 — NeuroAI** | **v2 — SynapseAI** |
-|---|---|---|
-| **UI** | Notion database | React SPA *(planned)* |
-| **Data** | JSON flat files + Notion API | PostgreSQL + pgvector |
-| **Processing** | Claude Code skills → Python scripts | FastAPI async pipeline |
-| **Search** | Tag-based only | Semantic + full-text |
-| **Chat** | Comment-based Q&A in Notion | RAG with conversation history |
-| **Deployment** | Manual skill triggers | Docker Compose, containerized |
+|                | **v1 — NeuroAI**                    | **v2 — SynapseAI**            |
+| -------------- | ----------------------------------- | ----------------------------- |
+| **UI**         | Notion database                     | React SPA _(planned)_         |
+| **Data**       | JSON flat files + Notion API        | PostgreSQL + pgvector         |
+| **Processing** | Claude Code skills → Python scripts | FastAPI async pipeline        |
+| **Search**     | Tag-based only                      | Semantic + full-text          |
+| **Chat**       | Comment-based Q&A in Notion         | RAG with conversation history |
+| **Deployment** | Manual skill triggers               | Docker Compose, containerized |
 
 ---
 
