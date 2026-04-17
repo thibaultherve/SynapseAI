@@ -1,10 +1,11 @@
 """T22: Embedding service — encode text + batch (mock model)."""
 
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
-from app.processing import embedding_service
+from app.core import embedding_client
 from tests.conftest import (
     pause_embedding_lifecycle_mocks,
     resume_embedding_lifecycle_mocks,
@@ -13,19 +14,19 @@ from tests.conftest import (
 
 @pytest.fixture(autouse=True)
 def _reset_embedding_state():
-    """Reset the embedding service global state before each test.
+    """Reset the embedding client global state before each test.
 
     Pauses the session-wide `load_embedding_model` / `unload_embedding_model`
     patches set up by conftest so this module can exercise the real functions.
     """
     pause_embedding_lifecycle_mocks()
-    embedding_service._model = None
-    embedding_service._executor = None
+    embedding_client._model = None
+    embedding_client._executor = None
     yield
-    embedding_service._model = None
-    if embedding_service._executor is not None:
-        embedding_service._executor.shutdown(wait=False)
-        embedding_service._executor = None
+    embedding_client._model = None
+    if embedding_client._executor is not None:
+        embedding_client._executor.shutdown(wait=False)
+        embedding_client._executor = None
     resume_embedding_lifecycle_mocks()
 
 
@@ -48,7 +49,7 @@ async def test_load_embedding_model():
     mock_model = _make_mock_model()
 
     with patch(
-        "app.processing.embedding_service.SentenceTransformer",
+        "app.core.embedding_client.SentenceTransformer",
         return_value=mock_model,
         create=True,
     ):
@@ -57,17 +58,17 @@ async def test_load_embedding_model():
             "sys.modules",
             {"sentence_transformers": MagicMock(SentenceTransformer=lambda *a, **kw: mock_model)},
         ):
-            await embedding_service.load_embedding_model()
+            await embedding_client.load_embedding_model()
 
-    assert embedding_service._model is not None
-    assert embedding_service._executor is not None
+    assert embedding_client._model is not None
+    assert embedding_client._executor is not None
 
 
 @pytest.mark.asyncio
 async def test_encode_text_without_loaded_model_raises():
     """encode_text without loading model should raise RuntimeError."""
     with pytest.raises(RuntimeError, match="not loaded"):
-        await embedding_service.encode_text("test text")
+        await embedding_client.encode_text("test text")
 
 
 @pytest.mark.asyncio
@@ -76,10 +77,10 @@ async def test_encode_text_returns_vector():
     from concurrent.futures import ThreadPoolExecutor
 
     mock_model = _make_mock_model()
-    embedding_service._model = mock_model
-    embedding_service._executor = ThreadPoolExecutor(max_workers=1)
+    embedding_client._model = mock_model
+    embedding_client._executor = ThreadPoolExecutor(max_workers=1)
 
-    result = await embedding_service.encode_text("test text")
+    result = await embedding_client.encode_text("test text")
     assert isinstance(result, list)
     assert len(result) == 768
     assert all(isinstance(v, float) for v in result)
@@ -91,11 +92,11 @@ async def test_encode_batch_returns_vectors():
     from concurrent.futures import ThreadPoolExecutor
 
     mock_model = _make_mock_model()
-    embedding_service._model = mock_model
-    embedding_service._executor = ThreadPoolExecutor(max_workers=1)
+    embedding_client._model = mock_model
+    embedding_client._executor = ThreadPoolExecutor(max_workers=1)
 
     texts = ["First text", "Second text", "Third text"]
-    result = await embedding_service.encode_batch(texts)
+    result = await embedding_client.encode_batch(texts)
 
     assert isinstance(result, list)
     assert len(result) == 3
@@ -106,7 +107,7 @@ async def test_encode_batch_returns_vectors():
 @pytest.mark.asyncio
 async def test_encode_batch_empty_list():
     """encode_batch with empty list returns empty list."""
-    result = await embedding_service.encode_batch([])
+    result = await embedding_client.encode_batch([])
     assert result == []
 
 
@@ -115,9 +116,9 @@ async def test_unload_clears_state():
     """unload_embedding_model should clear model and executor."""
     from concurrent.futures import ThreadPoolExecutor
 
-    embedding_service._model = _make_mock_model()
-    embedding_service._executor = ThreadPoolExecutor(max_workers=1)
+    embedding_client._model = _make_mock_model()
+    embedding_client._executor = ThreadPoolExecutor(max_workers=1)
 
-    await embedding_service.unload_embedding_model()
-    assert embedding_service._model is None
-    assert embedding_service._executor is None
+    await embedding_client.unload_embedding_model()
+    assert embedding_client._model is None
+    assert embedding_client._executor is None

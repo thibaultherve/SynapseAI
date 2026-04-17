@@ -2,7 +2,7 @@ import asyncio
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
-from app.papers.exceptions import ExtractionError
+from app.core.exceptions import ExtractionError
 
 MAX_PDF_PAGES = 500
 MAX_EXTRACTED_CHARS = 2_000_000

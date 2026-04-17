@@ -4,6 +4,7 @@ import logging
 
 from app.config import insight_settings
 from app.core.database import async_session
+from app.core.events import Event, subscribe
 from app.insights.exceptions import InsightRefreshBusyError
 from app.insights.service import generate_insights
 
@@ -53,6 +54,10 @@ class InsightDebouncer:
     def start(self) -> None:
         """Mark the debouncer as active (called from lifespan startup)."""
         self._started = True
+        subscribe(Event.PAPER_PROCESSED, self._on_paper_processed)
+
+    async def _on_paper_processed(self, paper_id) -> None:
+        self.schedule()
 
     async def stop(self) -> None:
         """Cancel any pending debounce timer (called from lifespan shutdown)."""

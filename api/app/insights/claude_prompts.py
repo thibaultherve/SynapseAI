@@ -6,9 +6,8 @@ from typing import Literal
 from pydantic import Field, ValidationError
 
 from app.config import insight_settings
+from app.core.llm_client import build_fenced_prompt, call_claude_locked
 from app.core.schemas import AppBaseModel
-from app.processing.claude_prompt_builder import build_fenced_prompt
-from app.processing.claude_service import call_claude_locked
 
 INSIGHT_PROMPT = """You are a research intelligence analyst for SynapseAI.
 Your job is to identify emergent insights across a corpus of scientific papers.

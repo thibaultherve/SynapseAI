@@ -17,11 +17,6 @@ class InvalidDOIError(ValidationError):
         super().__init__(ErrorCode.INVALID_DOI, message)
 
 
-class ExtractionError(AppError):
-    def __init__(self, code: str, message: str):
-        super().__init__(code, message, status_code=422)
-
-
 class UploadTooLargeError(AppError):
     def __init__(self, message: str = "File exceeds 100MB limit"):
         super().__init__(ErrorCode.FILE_TOO_LARGE, message, status_code=413)

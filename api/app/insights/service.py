@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import insight_settings
+from app.core.llm_client import sanitize_summary_for_reuse
 from app.insights.claude_prompts import (
     InsightOutput,
     generate_insights_from_claude,
@@ -25,7 +26,6 @@ from app.insights.schemas import (
 )
 from app.papers.models import Paper
 from app.papers.schemas import PaperSummaryResponse
-from app.processing.claude_service import sanitize_summary_for_reuse
 from app.processing.models import CrossReference
 
 logger = logging.getLogger(__name__)

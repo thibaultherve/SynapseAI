@@ -12,8 +12,8 @@ import pytest
 from sqlalchemy import select
 
 from app.core.enums import StepName
+from app.core.llm_client import sanitize_summary_for_reuse
 from app.papers.models import Paper
-from app.processing.claude_service import sanitize_summary_for_reuse
 from app.processing.crossref_service import (
     CrossRefOutput,
     canonical_pair,
@@ -221,7 +221,7 @@ async def test_run_crossref_step_drops_none(db, paper_factory):
 @pytest.mark.asyncio
 async def test_run_crossref_step_continues_on_pair_failure(db, paper_factory):
     """T6: One pair raises ClaudeError -> loop continues, others succeed."""
-    from app.processing.exceptions import ClaudeError as CE
+    from app.core.llm_client import ClaudeError as CE
     from app.processing.models import PaperEmbedding
 
     ref = [1.0] + [0.0] * 767

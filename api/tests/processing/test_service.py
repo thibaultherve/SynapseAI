@@ -296,3 +296,46 @@ async def test_process_paper_embedding_step(db, mock_claude, mock_embedding):
         for emb in embeddings:
             assert emb.chunk_text is not None
             assert emb.chunk_index >= 0
+
+
+# --- Phase 3: event-bus decoupling (processing -> insights) ---
+
+
+@pytest.mark.asyncio
+async def test_pipeline_publishes_paper_processed_schedules_insights(
+    db, tmp_upload_dir, mock_claude, mock_embedding, monkeypatch
+):
+    """End of pipeline publishes Event.PAPER_PROCESSED, debouncer handler calls schedule()."""
+    from pathlib import Path
+
+    from app.insights.debouncer import insight_debouncer
+    from app.processing.service import process_paper
+
+    schedule_mock = MagicMock()
+    monkeypatch.setattr(insight_debouncer, "schedule", schedule_mock)
+    insight_debouncer.start()
+
+    paper_id = uuid.uuid4()
+    file_path = Path(tmp_upload_dir) / f"{paper_id}.pdf"
+    file_path.write_bytes(b"%PDF-1.4 fake pdf")
+    paper = Paper(
+        id=paper_id,
+        source_type=SourceType.PDF.value,
+        file_path=str(file_path),
+    )
+    db.add(paper)
+    await db.commit()
+
+    with (
+        patch(
+            "app.processing.service.extract_pdf_text",
+            new=AsyncMock(return_value="some extracted text"),
+        ),
+        patch(
+            "app.processing.service.generate_tags",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        await process_paper(paper_id)
+
+    schedule_mock.assert_called_once()

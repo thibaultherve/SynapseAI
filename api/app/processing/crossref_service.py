@@ -22,11 +22,13 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import crossref_settings
+from app.core.llm_client import (
+    ClaudeError,
+    build_fenced_prompt,
+    call_claude_locked,
+)
 from app.core.schemas import AppBaseModel
 from app.papers.models import Paper
-from app.processing.claude_prompt_builder import build_fenced_prompt
-from app.processing.claude_service import call_claude_locked
-from app.processing.exceptions import ClaudeError
 from app.processing.models import CrossReference, PaperEmbedding
 
 logger = logging.getLogger(__name__)

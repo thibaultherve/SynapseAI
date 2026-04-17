@@ -6,8 +6,8 @@ import uuid
 from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.embedding_client import encode_text
 from app.papers.models import Paper, PaperTag
-from app.processing.embedding_service import encode_text
 from app.processing.models import PaperEmbedding
 from app.search.schemas import SearchFilters, SearchResultItem
 from app.tags.models import Tag

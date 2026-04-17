@@ -1,4 +1,8 @@
-"""Singleton embedding model (nomic-embed-text) with ThreadPoolExecutor."""
+"""Singleton embedding model (nomic-embed-text) with ThreadPoolExecutor.
+
+Canonical home for encode/load/unload. Import from here, not from
+`app.processing.embedding_service`.
+"""
 
 import asyncio
 import logging

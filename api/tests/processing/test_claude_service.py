@@ -3,11 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.processing.claude_service import (
-    call_claude,
-    sanitize_tag_output,
-)
-from app.processing.exceptions import ClaudeError
+from app.core.llm_client import ClaudeError, call_claude
+from app.processing.claude_service import sanitize_tag_output
 
 
 @pytest.mark.asyncio

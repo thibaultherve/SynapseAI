@@ -10,12 +10,12 @@ from sqlalchemy.orm import selectinload
 
 from app.config import embedding_settings, processing_settings
 from app.core.database import async_session
+from app.core.embedding_client import encode_batch
 from app.core.enums import SourceType, StepName, StepStatus
-from app.insights.debouncer import insight_debouncer
+from app.core.events import Event, publish
 from app.papers.models import Paper
 from app.processing.claude_service import generate_summaries, generate_tags
 from app.processing.crossref_service import run_crossref_step
-from app.processing.embedding_service import encode_batch
 from app.processing.events import cleanup_paper_event, notify_paper_update
 from app.processing.models import PaperEmbedding, PaperStep, ProcessingEvent
 from app.tags.models import Tag
@@ -321,7 +321,7 @@ async def process_paper(paper_id: uuid.UUID):
                 notify_paper_update(str(paper_id))
 
                 # Debounce an insight-generation pass across the corpus.
-                insight_debouncer.schedule()
+                await publish(Event.PAPER_PROCESSED, paper_id=paper.id)
 
             # Terminal
             paper.processed_at = datetime.now(UTC).replace(tzinfo=None)

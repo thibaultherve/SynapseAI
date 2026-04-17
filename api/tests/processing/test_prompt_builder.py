@@ -1,4 +1,4 @@
-"""Tests for app.processing.claude_prompt_builder and related prompt hardening.
+"""Tests for app.core.llm_client prompt hardening primitives.
 
 Covers sanitization, UUID fence construction, canary helpers, and schema
 rejection of malformed Claude tagging output.
@@ -10,17 +10,15 @@ from unittest.mock import patch
 
 import pytest
 
-from app.processing.claude_prompt_builder import (
+from app.core.llm_client import (
+    ClaudeError,
     build_fenced_prompt,
     canary_in_output,
     generate_canary,
+    sanitize_summary_for_reuse,
     sanitize_user_content,
 )
-from app.processing.claude_service import (
-    generate_tags,
-    sanitize_summary_for_reuse,
-)
-from app.processing.exceptions import ClaudeError
+from app.processing.claude_service import generate_tags
 
 
 class TestSanitizeUserContent:

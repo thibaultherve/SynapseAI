@@ -1,25 +1,25 @@
-import asyncio
+"""Processing-specific Claude wrappers (summaries + tagging).
+
+Generic Claude CLI calls, the concurrency semaphore, prompt-building helpers
+and `ClaudeError` live in `app.core.llm_client`. This module only contains
+the pipeline-facing wrappers that know about `SummaryOutput` / `TagSubmission`
+schemas and the processing-specific tag sanitization rules.
+"""
+
 import json
 import re
-from collections.abc import AsyncGenerator
 
 from pydantic import Field, ValidationError
 
-from app.config import processing_settings
-from app.core.schemas import AppBaseModel
-from app.processing.claude_prompt_builder import (
+from app.core.llm_client import (
+    ClaudeError,
     build_fenced_prompt,
-    sanitize_user_content,
+    call_claude_locked,
 )
-from app.processing.constants import ErrorCode
-from app.processing.exceptions import ClaudeError
+from app.core.schemas import AppBaseModel
 
 TAG_NAME_REGEX = re.compile(r"^[a-zA-Z0-9\s\-/().,'+]+$")
 VALID_TAG_CATEGORIES = frozenset({"sub_domain", "technique", "pathology", "topic"})
-
-# Unified Claude CLI concurrency guard for plan-Max (1 call at a time across
-# summarize/tagging/crossref/insight).
-_claude_semaphore = asyncio.Semaphore(1)
 
 
 class SummaryOutput(AppBaseModel):
@@ -43,66 +43,6 @@ class TagSubmission(AppBaseModel):
     """
 
     tags: list[dict]
-
-
-async def call_claude(prompt: str, timeout: float | None = None) -> str:
-    timeout = timeout or processing_settings.CLAUDE_TIMEOUT
-    process = await asyncio.create_subprocess_exec(
-        "claude",
-        "-p",
-        "-",
-        "--output-format",
-        "json",
-        "--max-turns",
-        "1",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    try:
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(input=prompt.encode()), timeout=timeout
-        )
-    except TimeoutError as exc:
-        process.kill()
-        await process.wait()
-        raise ClaudeError(
-            ErrorCode.CLAUDE_TIMEOUT, f"Claude CLI timed out after {timeout}s"
-        ) from exc
-
-    if process.returncode != 0:
-        err_msg = (stderr.decode() + stdout.decode())[:500]
-        raise ClaudeError(ErrorCode.CLAUDE_ERROR, f"Claude CLI failed: {err_msg}")
-
-    try:
-        data = json.loads(stdout.decode())
-        # --output-format json returns a list of messages.
-        # Extract the text from the last assistant message.
-        if isinstance(data, list):
-            for msg in reversed(data):
-                if msg.get("type") == "assistant" and "message" in msg:
-                    # message contains content blocks
-                    content = msg["message"].get("content", [])
-                    texts = [b["text"] for b in content if b.get("type") == "text"]
-                    if texts:
-                        return "\n".join(texts)
-            # Fallback: return raw stdout
-            return stdout.decode()
-        return data.get("result", stdout.decode())
-    except json.JSONDecodeError as e:
-        raise ClaudeError(
-            ErrorCode.CLAUDE_PARSE_ERROR, f"Failed to parse Claude response: {e}"
-        ) from e
-
-
-async def call_claude_locked(prompt: str, timeout: float | None = None) -> str:
-    """Serialize Claude CLI calls across the app via `_claude_semaphore`.
-
-    Wraps `call_claude` to enforce the plan-Max 1-concurrent-call constraint
-    across every domain that talks to Claude (summaries, tags, crossref, insights).
-    """
-    async with _claude_semaphore:
-        return await call_claude(prompt, timeout=timeout)
 
 
 SUMMARIZE_PROMPT = """You are a research paper analysis assistant.
@@ -189,7 +129,6 @@ def sanitize_tag_output(
             category = new.get("category", "")
             description = new.get("description")
 
-            # Validate name
             if not isinstance(name, str) or not name.strip():
                 continue
             name = name.strip()
@@ -198,11 +137,9 @@ def sanitize_tag_output(
             if not TAG_NAME_REGEX.match(name):
                 continue
 
-            # Validate category
             if category not in VALID_TAG_CATEGORIES:
                 continue
 
-            # Validate description
             if description is not None:
                 if not isinstance(description, str):
                     description = None
@@ -244,123 +181,11 @@ async def generate_tags(
         submission = TagSubmission.model_validate_json(clean)
     except (ValidationError, json.JSONDecodeError, IndexError) as e:
         raise ClaudeError(
-            ErrorCode.CLAUDE_PARSE_ERROR,
+            "CLAUDE_PARSE_ERROR",
             f"Claude tagging output failed schema validation: {e}",
         ) from e
 
     return sanitize_tag_output(submission.tags, existing_tag_ids)
-
-
-async def stream_claude(
-    prompt: str,
-    timeout_per_chunk: float = 30.0,
-    stdin_drain_timeout: float = 10.0,
-) -> AsyncGenerator[dict, None]:
-    """Stream Claude CLI output as parsed chunks.
-
-    Uses --output-format stream-json --max-turns 1. Yields dicts:
-      - {"type": "content", "text": str}   per text delta
-      - {"type": "error", "message": str}  on timeout/failure
-      - {"type": "done", "full_text": str} at the end on success
-
-    The subprocess is killed if the per-chunk readline times out, if stdin
-    drain hangs longer than `stdin_drain_timeout`, if the generator is closed
-    (client disconnect), or on unexpected errors. `finally` reaps the process
-    (calls `process.wait()`) to avoid zombies.
-    """
-    process = await asyncio.create_subprocess_exec(
-        "claude",
-        "-p",
-        "-",
-        "--output-format",
-        "stream-json",
-        "--max-turns",
-        "1",
-        "--verbose",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-
-    full_response: list[str] = []
-    try:
-        if process.stdin is not None:
-            process.stdin.write(prompt.encode())
-            try:
-                await asyncio.wait_for(
-                    process.stdin.drain(), timeout=stdin_drain_timeout
-                )
-            except TimeoutError:
-                process.kill()
-                yield {
-                    "type": "error",
-                    "message": (
-                        f"Claude stdin drain timed out after "
-                        f"{stdin_drain_timeout}s"
-                    ),
-                    "code": ErrorCode.CLAUDE_TIMEOUT.value,
-                }
-                return
-            process.stdin.close()
-
-        assert process.stdout is not None
-        while True:
-            try:
-                line = await asyncio.wait_for(
-                    process.stdout.readline(), timeout=timeout_per_chunk
-                )
-            except TimeoutError:
-                process.kill()
-                yield {
-                    "type": "error",
-                    "message": (
-                        f"Response generation timed out after "
-                        f"{timeout_per_chunk}s per chunk"
-                    ),
-                }
-                return
-
-            if not line:
-                break
-
-            try:
-                event = json.loads(line.decode())
-            except json.JSONDecodeError:
-                continue
-
-            # Extract text deltas from Claude's streaming envelope.
-            # stream-json format wraps assistant messages in event envelopes.
-            event_type = event.get("type")
-            if event_type == "content_block_delta":
-                delta = event.get("delta", {})
-                text = delta.get("text") if isinstance(delta, dict) else None
-                if text:
-                    full_response.append(text)
-                    yield {"type": "content", "text": text}
-            elif event_type == "assistant":
-                message = event.get("message", {}) or {}
-                for block in message.get("content", []) or []:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text = block.get("text", "")
-                        if text:
-                            full_response.append(text)
-                            yield {"type": "content", "text": text}
-
-        returncode = await process.wait()
-        if returncode != 0:
-            assert process.stderr is not None
-            stderr = await process.stderr.read()
-            yield {
-                "type": "error",
-                "message": f"Claude CLI failed: {stderr.decode()[:200]}",
-            }
-            return
-
-        yield {"type": "done", "full_text": "".join(full_response)}
-    finally:
-        if process.returncode is None:
-            process.kill()
-            await process.wait()
 
 
 async def generate_summaries(extracted_text: str) -> SummaryOutput:
@@ -378,15 +203,5 @@ async def generate_summaries(extracted_text: str) -> SummaryOutput:
         return SummaryOutput.model_validate_json(clean)
     except Exception as e:
         raise ClaudeError(
-            ErrorCode.CLAUDE_PARSE_ERROR, f"Claude output validation failed: {e}"
+            "CLAUDE_PARSE_ERROR", f"Claude output validation failed: {e}"
         ) from e
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatible wrapper — prefer `sanitize_user_content` in new code.
-# Preserves the legacy default cap of 2000 chars for model-generated text.
-# ---------------------------------------------------------------------------
-
-
-def sanitize_summary_for_reuse(text: str | None, max_chars: int = 2000) -> str:
-    return sanitize_user_content(text, max_chars=max_chars)

@@ -16,11 +16,11 @@ os.environ["DATABASE_URL"] = (
 # can call `pause_embedding_lifecycle_mocks()` / `resume_embedding_lifecycle_mocks()` to
 # temporarily restore the real functions.
 _load_patch = patch(
-    "app.processing.embedding_service.load_embedding_model",
+    "app.core.embedding_client.load_embedding_model",
     new_callable=AsyncMock,
 )
 _unload_patch = patch(
-    "app.processing.embedding_service.unload_embedding_model",
+    "app.core.embedding_client.unload_embedding_model",
     new_callable=AsyncMock,
 )
 _load_patch.start()
@@ -92,6 +92,10 @@ async def _clean_tables():
     # leak across tests (and across different pytest-asyncio event loops).
     from app.insights.debouncer import insight_debouncer
     insight_debouncer.reset()
+    # Clear event bus subscriptions so handlers registered via start() in a
+    # previous test don't fire in the next one.
+    from app.core import events
+    events._subs.clear()
     yield
 
 
@@ -210,8 +214,8 @@ def mock_claude(monkeypatch):
 def mock_embedding(monkeypatch):
     """Mock the embedding service encode_batch/encode_text to return fake 768-dim vectors.
 
-    Patches every module that imports encode_* from embedding_service — keep this list
-    in sync with `grep -rn "from app.processing.embedding_service import" app/`.
+    Patches every module that imports encode_* from the embedding client — keep this list
+    in sync with `grep -rn "from app.core.embedding_client import" app/`.
     """
     FAKE_DIM = 768
 

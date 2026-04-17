@@ -16,10 +16,9 @@ from app.chat.exceptions import (
 )
 from app.chat.models import ChatMessage, ChatSession
 from app.config import chat_settings
+from app.core.embedding_client import encode_text
+from app.core.llm_client import build_fenced_prompt, stream_claude
 from app.papers.models import Paper
-from app.processing.claude_prompt_builder import build_fenced_prompt
-from app.processing.claude_service import stream_claude
-from app.processing.embedding_service import encode_text
 from app.processing.models import PaperEmbedding
 
 logger = logging.getLogger(__name__)

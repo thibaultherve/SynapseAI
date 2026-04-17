@@ -9,9 +9,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-from starlette.responses import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import Response
 
 from app.chat.router import router as chat_router
 from app.config import settings
@@ -85,11 +85,11 @@ async def _startup_check_pgvector_index() -> None:
 async def lifespan(app: FastAPI):
     _require_single_worker()
 
-    from app.insights.debouncer import insight_debouncer
-    from app.processing.embedding_service import (
+    from app.core.embedding_client import (
         load_embedding_model,
         unload_embedding_model,
     )
+    from app.insights.debouncer import insight_debouncer
     from app.processing.task_registry import drain_tasks, mark_shutting_down
 
     try:

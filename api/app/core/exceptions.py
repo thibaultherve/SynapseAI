@@ -18,3 +18,8 @@ class ConflictError(AppError):
 class ValidationError(AppError):
     def __init__(self, code: str, message: str):
         super().__init__(code, message, status_code=422)
+
+
+class ExtractionError(AppError):
+    def __init__(self, code: str, message: str):
+        super().__init__(code, message, status_code=422)
