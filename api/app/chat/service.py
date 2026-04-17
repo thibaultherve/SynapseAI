@@ -1,5 +1,6 @@
 """Chat service: session management, RAG context building, chat orchestration."""
 
+import asyncio
 import logging
 import uuid
 from collections.abc import AsyncGenerator
@@ -16,6 +17,7 @@ from app.chat.exceptions import (
 from app.chat.models import ChatMessage, ChatSession
 from app.config import chat_settings
 from app.papers.models import Paper
+from app.processing.claude_prompt_builder import build_fenced_prompt
 from app.processing.claude_service import stream_claude
 from app.processing.embedding_service import encode_text
 from app.processing.models import PaperEmbedding
@@ -151,8 +153,10 @@ async def build_paper_context(
         if text:
             parts.append(f"<chunk index=\"{idx}\">\n{text}\n</chunk>")
 
-    return _truncate_to_budget(
-        "\n\n".join(parts), chat_settings.CHAT_MAX_CONTEXT_TOKENS
+    return await asyncio.to_thread(
+        _truncate_to_budget,
+        "\n\n".join(parts),
+        chat_settings.CHAT_MAX_CONTEXT_TOKENS,
     )
 
 
@@ -176,8 +180,10 @@ async def build_corpus_context(db: AsyncSession, query: str) -> str:
             f"<chunk index=\"{idx}\" paper_id=\"{pid}\" title=\"{title}\">\n{text}\n</chunk>"
         )
 
-    return _truncate_to_budget(
-        "\n\n".join(parts), chat_settings.CHAT_MAX_CONTEXT_TOKENS
+    return await asyncio.to_thread(
+        _truncate_to_budget,
+        "\n\n".join(parts),
+        chat_settings.CHAT_MAX_CONTEXT_TOKENS,
     )
 
 
@@ -276,10 +282,13 @@ async def _chat_stream(
     else:
         context = await build_corpus_context(db, user_message)
 
-    prompt = CHAT_PROMPT.format(
-        retrieved_context=context,
-        conversation_history=_format_history(history),
-        user_question=user_message,
+    prompt = build_fenced_prompt(
+        CHAT_PROMPT,
+        user_blocks={
+            "retrieved_context": context,
+            "conversation_history": _format_history(history),
+            "user_question": user_message,
+        },
     )
 
     # Persist the user message eagerly so it is visible even if streaming fails.
