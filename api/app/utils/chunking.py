@@ -1,5 +1,6 @@
 """Sentence-boundary-aware text chunking for embedding generation."""
 
+import asyncio
 import re
 
 from app.config import embedding_settings
@@ -63,6 +64,19 @@ def chunk_text(
         current_start = overlap_start if overlap_start > current_start else end
 
     return chunks[:max_chunks]
+
+
+async def chunk_text_async(
+    text: str,
+    chunk_size: int = embedding_settings.EMBEDDING_CHUNK_SIZE,
+    overlap: int = embedding_settings.EMBEDDING_CHUNK_OVERLAP,
+    max_chunks: int = embedding_settings.EMBEDDING_MAX_CHUNKS_PER_PAPER,
+    max_text_chars: int = embedding_settings.EMBEDDING_MAX_TEXT_CHARS,
+) -> list[str]:
+    """Async wrapper around ``chunk_text`` — offloads CPU-bound work to a thread."""
+    return await asyncio.to_thread(
+        chunk_text, text, chunk_size, overlap, max_chunks, max_text_chars
+    )
 
 
 # Sentence boundary regex: split on .!? followed by whitespace,

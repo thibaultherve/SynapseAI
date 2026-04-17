@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import processing_settings
 from app.core.database import async_session, get_db
 from app.core.enums import DerivedPaperStatus, StepName, StepStatus
 from app.core.exceptions import ConflictError, ValidationError
@@ -25,10 +26,6 @@ from app.ratelimit import limiter
 router = APIRouter(prefix="/api/papers", tags=["processing"])
 
 _sse_connections: dict[str, int] = defaultdict(int)
-MAX_SSE_PER_PAPER = 3
-MAX_SSE_TOTAL = 50
-SSE_MAX_DURATION = 600  # 10 minutes
-SSE_HEARTBEAT_INTERVAL = 15
 
 TERMINAL_STATUSES = {
     DerivedPaperStatus.READABLE,
@@ -56,9 +53,9 @@ async def paper_status_stream(
     key = str(paper_id)
 
     total = sum(_sse_connections.values())
-    if total >= MAX_SSE_TOTAL:
+    if total >= processing_settings.PROCESSING_MAX_SSE_TOTAL:
         raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Server at SSE capacity", 503)
-    if _sse_connections[key] >= MAX_SSE_PER_PAPER:
+    if _sse_connections[key] >= processing_settings.PROCESSING_MAX_SSE_PER_PAPER:
         raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many listeners for this paper", 429)
 
     # Resume from the client's last-seen ProcessingEvent id if provided.
@@ -76,7 +73,7 @@ async def paper_status_stream(
 
             while True:
                 elapsed = asyncio.get_running_loop().time() - start
-                if elapsed > SSE_MAX_DURATION:
+                if elapsed > processing_settings.PROCESSING_SSE_MAX_DURATION:
                     yield "event: timeout\ndata: {}\n\n"
                     return
 
@@ -116,7 +113,9 @@ async def paper_status_stream(
                         return
 
                 # Wait for notification or timeout (heartbeat)
-                updated = await wait_for_update(key, timeout=SSE_HEARTBEAT_INTERVAL)
+                updated = await wait_for_update(
+                    key, timeout=processing_settings.PROCESSING_SSE_HEARTBEAT_INTERVAL
+                )
                 if not updated:
                     yield ": keepalive\n\n"
         finally:

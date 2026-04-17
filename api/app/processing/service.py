@@ -20,7 +20,7 @@ from app.processing.events import cleanup_paper_event, notify_paper_update
 from app.processing.models import PaperEmbedding, PaperStep, ProcessingEvent
 from app.tags.models import Tag
 from app.tags.service import link_tags_to_paper, resolve_tags
-from app.utils.chunking import chunk_text
+from app.utils.chunking import chunk_text_async
 from app.utils.text_extraction import extract_pdf_text, extract_web_text
 from app.utils.url_validator import fetch_url_content
 
@@ -122,7 +122,7 @@ async def _generate_embeddings(db, paper: Paper) -> None:
     if not text_content:
         raise ValueError("No extracted text available for embedding generation")
 
-    chunks = chunk_text(text_content)
+    chunks = await chunk_text_async(text_content)
     if not chunks:
         raise ValueError("Text chunking produced no chunks")
 

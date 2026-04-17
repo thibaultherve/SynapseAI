@@ -10,6 +10,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.base import Base
+from app.core.migration_lock import migration_advisory_lock
 
 # Import all models so Alembic detects them
 from app.papers.models import Paper, PaperTag  # noqa: F401
@@ -54,8 +55,9 @@ def do_run_migrations(connection) -> None:
         target_metadata=target_metadata,
         include_object=include_object,
     )
-    with context.begin_transaction():
-        context.run_migrations()
+    with migration_advisory_lock(connection):
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 async def run_async_migrations() -> None:

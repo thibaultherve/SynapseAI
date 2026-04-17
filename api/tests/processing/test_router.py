@@ -178,7 +178,8 @@ async def test_processing_pipeline_pdf(db, tmp_upload_dir, mock_claude, mock_emb
 @pytest.mark.asyncio
 async def test_sse_too_many_per_paper(client, db):
     """GET /api/papers/:id/status when MAX_SSE_PER_PAPER already reached -> 429."""
-    from app.processing.router import _sse_connections, MAX_SSE_PER_PAPER
+    from app.config import processing_settings
+    from app.processing.router import _sse_connections
 
     paper_id = uuid.uuid4()
     paper = Paper(id=paper_id, source_type=SourceType.PDF)
@@ -189,7 +190,7 @@ async def test_sse_too_many_per_paper(client, db):
     await db.commit()
 
     key = str(paper_id)
-    _sse_connections[key] = MAX_SSE_PER_PAPER
+    _sse_connections[key] = processing_settings.PROCESSING_MAX_SSE_PER_PAPER
     try:
         response = await client.get(f"/api/papers/{paper_id}/status")
         assert response.status_code == 429
@@ -200,7 +201,8 @@ async def test_sse_too_many_per_paper(client, db):
 @pytest.mark.asyncio
 async def test_sse_server_at_capacity(client, db):
     """GET /api/papers/:id/status when MAX_SSE_TOTAL already reached -> 503."""
-    from app.processing.router import _sse_connections, MAX_SSE_TOTAL
+    from app.config import processing_settings
+    from app.processing.router import _sse_connections
 
     paper_id = uuid.uuid4()
     paper = Paper(id=paper_id, source_type=SourceType.PDF)
@@ -210,7 +212,7 @@ async def test_sse_server_at_capacity(client, db):
         db.add(PaperStep(paper_id=paper_id, step=step_name.value))
     await db.commit()
 
-    _sse_connections["__fake__"] = MAX_SSE_TOTAL
+    _sse_connections["__fake__"] = processing_settings.PROCESSING_MAX_SSE_TOTAL
     try:
         response = await client.get(f"/api/papers/{paper_id}/status")
         assert response.status_code == 503

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # ---- Processing / Claude ----
     CLAUDE_TIMEOUT: int = 120
     MAX_CONCURRENT_PROCESSING: int = 3
+    PROCESSING_MAX_SSE_PER_PAPER: int = 3
+    PROCESSING_MAX_SSE_TOTAL: int = 50
+    PROCESSING_SSE_MAX_DURATION: int = 600
+    PROCESSING_SSE_HEARTBEAT_INTERVAL: int = 15
 
     # ---- Embedding ----
     EMBEDDING_MODEL_NAME: str = "nomic-ai/nomic-embed-text-v1.5"
