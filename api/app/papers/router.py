@@ -13,6 +13,7 @@ from app.core.schemas import ErrorResponse
 from app.papers import service
 from app.papers.constants import ErrorCode
 from app.papers.dependencies import get_paper_or_404, validate_upload
+from app.papers.exceptions import PaperFileMissingError
 from app.papers.models import Paper
 from app.papers.schemas import (
     CrossrefResponse,
@@ -146,25 +147,45 @@ async def get_paper_crossrefs(
     description="Download the original uploaded PDF file.",
     responses={
         404: {"model": ErrorResponse, "description": "Paper or file not found"},
+        429: {"description": "Rate limit exceeded"},
     },
 )
-async def get_paper_file(paper: Paper = Depends(get_paper_or_404)):
+@limiter.limit("30/minute")
+async def get_paper_file(
+    request: Request,
+    paper: Paper = Depends(get_paper_or_404),
+):
     if not paper.file_path:
         raise NotFoundError(ErrorCode.NO_FILE, "No file associated with this paper")
 
-    # Path traversal validation
-    file_path = Path(paper.file_path).resolve()
-    upload_dir = Path(upload_settings.UPLOAD_DIR).resolve()
-    if not str(file_path).startswith(str(upload_dir)):
-        raise NotFoundError(ErrorCode.NO_FILE, "File not found")
+    try:
+        upload_dir = Path(upload_settings.UPLOAD_DIR).resolve(strict=True)
+    except (FileNotFoundError, OSError):
+        raise PaperFileMissingError()
 
-    if not file_path.exists():
-        raise NotFoundError(ErrorCode.NO_FILE, "File not found on disk")
+    candidate = Path(paper.file_path)
+    # Reject symlinks at the leaf explicitly: resolve() would silently
+    # follow them, so a symlink planted inside UPLOAD_DIR pointing at
+    # /etc/passwd would otherwise slip past is_relative_to.
+    if candidate.is_symlink():
+        raise PaperFileMissingError()
+
+    try:
+        real = candidate.resolve(strict=True)
+    except (FileNotFoundError, OSError):
+        raise PaperFileMissingError()
+
+    if not real.is_relative_to(upload_dir):
+        raise PaperFileMissingError()
+
+    if not real.is_file():
+        raise PaperFileMissingError()
 
     return FileResponse(
-        path=str(file_path),
+        path=str(real),
         media_type="application/pdf",
         filename=f"{paper.id}.pdf",
+        headers={"X-Content-Type-Options": "nosniff"},
     )
 
 

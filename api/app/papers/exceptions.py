@@ -7,6 +7,11 @@ class PaperNotFoundError(NotFoundError):
         super().__init__(ErrorCode.PAPER_NOT_FOUND, f"Paper {paper_id} not found")
 
 
+class PaperFileMissingError(NotFoundError):
+    def __init__(self, message: str = "Paper file unavailable"):
+        super().__init__(ErrorCode.PAPER_FILE_MISSING, message)
+
+
 class InvalidDOIError(ValidationError):
     def __init__(self, message: str = "Invalid DOI format. Expected: 10.XXXX/..."):
         super().__init__(ErrorCode.INVALID_DOI, message)

@@ -25,7 +25,9 @@ async def validate_upload(file: UploadFile = File(...)) -> bytes:
     """Validate PDF upload: magic bytes + size limit. Returns file content."""
     header = await file.read(5)
     await file.seek(0)
-    if not header.startswith(b"%PDF"):
+    # PDF spec requires `%PDF-N.M` header — rejecting bare `%PDF` catches
+    # crafted files that mimic the shorter magic but fail at parse time.
+    if not header.startswith(b"%PDF-"):
         raise ValidationError(ErrorCode.INVALID_FILE_TYPE, "Only PDF files are accepted")
 
     chunks = []

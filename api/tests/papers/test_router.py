@@ -245,6 +245,10 @@ async def test_get_paper_file_ok(client, db, tmp_upload_dir):
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    disposition = response.headers["content-disposition"]
+    assert "attachment" in disposition
+    assert str(paper_id) in disposition
     assert response.content.startswith(b"%PDF")
 
 
@@ -301,7 +305,7 @@ async def test_get_paper_file_deleted_from_disk(client, db, tmp_upload_dir):
     response = await client.get(f"/api/papers/{paper_id}/file")
 
     assert response.status_code == 404
-    assert "NO_FILE" in response.json()["error"]["code"]
+    assert response.json()["error"]["code"] == "PAPER_FILE_MISSING"
 
 
 @pytest.mark.asyncio
@@ -312,12 +316,15 @@ async def test_get_paper_file_path_traversal(client, db, tmp_upload_dir):
     from app.processing.models import PaperStep
 
     paper_id = uuid.uuid4()
-    malicious_path = str(Path(tmp_upload_dir).parent / "etc" / "passwd")
+    outside_dir = Path(tmp_upload_dir).parent / "outside"
+    outside_dir.mkdir(exist_ok=True)
+    malicious_path = outside_dir / "secret.pdf"
+    malicious_path.write_bytes(b"%PDF-1.4 outside")
 
     paper = Paper(
         id=paper_id,
         source_type=SourceType.PDF,
-        file_path=malicious_path,
+        file_path=str(malicious_path),
     )
     db.add(paper)
     await db.flush()
@@ -328,7 +335,45 @@ async def test_get_paper_file_path_traversal(client, db, tmp_upload_dir):
     response = await client.get(f"/api/papers/{paper_id}/file")
 
     assert response.status_code == 404
-    assert "NO_FILE" in response.json()["error"]["code"]
+    assert response.json()["error"]["code"] == "PAPER_FILE_MISSING"
+
+
+@pytest.mark.asyncio
+async def test_get_paper_file_symlink_rejected(client, db, tmp_upload_dir):
+    """GET /api/papers/:id/file when file_path is a symlink -> 404 opaque.
+
+    A symlink planted inside UPLOAD_DIR pointing at an arbitrary file would
+    pass `is_relative_to(upload_dir)` after `resolve()`, so the endpoint must
+    reject symlinks at the leaf explicitly.
+    """
+    from app.core.enums import StepName
+    from app.papers.models import Paper
+    from app.processing.models import PaperStep
+
+    paper_id = uuid.uuid4()
+    target = Path(tmp_upload_dir) / f"{paper_id}-target.pdf"
+    target.write_bytes(b"%PDF-1.4 target")
+    link_path = Path(tmp_upload_dir) / f"{paper_id}.pdf"
+    try:
+        link_path.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation not supported on this platform")
+
+    paper = Paper(
+        id=paper_id,
+        source_type=SourceType.PDF,
+        file_path=str(link_path),
+    )
+    db.add(paper)
+    await db.flush()
+    for step_name in StepName:
+        db.add(PaperStep(paper_id=paper_id, step=step_name.value))
+    await db.commit()
+
+    response = await client.get(f"/api/papers/{paper_id}/file")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PAPER_FILE_MISSING"
 
 
 # --- Edge cases: delete / update not found ---
