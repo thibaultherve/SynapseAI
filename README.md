@@ -192,12 +192,6 @@ See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🤖 AI Usage
-
-In the interest of transparency: AI is used regularly throughout this project as a development tool — for code generation, refactoring, debugging, and documentation. But it remains exactly that: a tool. As the sole developer, I define the architecture, enforce best practices, and maintain full control over technical direction. AI accelerates execution — it doesn't replace thinking.
-
----
-
 ## 👤 Author
 
 <table>
